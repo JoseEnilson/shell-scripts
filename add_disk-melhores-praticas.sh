@@ -10,6 +10,7 @@
 # Prioriza discos sem partições e, em seguida, discos particionados sem LVM.
 #
 # Requisitos:
+#   - bc.x86_64 (embora não usado no script atual, pode ser útil para futuros cálculos)
 #   - util-linux (para fdisk, lsblk, partprobe)
 #   - lvm2 (para pvcreate, vgcreate, lvcreate, pvs, vgs, lvs)
 #   - e2fsprogs (para mkfs.ext4)
@@ -151,9 +152,12 @@ function partition_instructions() {
     
     echo "DEBUG: Executando partition_instructions para $disk_path" >> "$DISK_LOG_FILE"
 
-    # Mensagens para o usuário (exibidas no terminal via tee, logadas via tee)
     echo -e "\n${C_YELLOW}ATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE...${C_RESET}" | tee -a "$DISK_LOG_FILE"
     echo -e "${C_YELLOW}Será criada uma única partição primária, tipo 'Linux LVM (8e)', ocupando todo o disco.${C_RESET}" | tee -a "$DISK_LOG_FILE"
+
+    echo "DEBUG: Limpando assinaturas existentes em $disk_path" >> "$DISK_LOG_FILE"
+    # Redireciona stdout e stderr para /dev/null, e erros para o log
+    wipefs -a "$disk_path" >/dev/null 2>>"$DISK_LOG_FILE" || echo "WARNING: wipefs falhou ou teve saída de erro em $disk_path." >> "$DISK_LOG_FILE"
 
     echo "DEBUG: Executando fdisk automatizado em $disk_path" >> "$DISK_LOG_FILE"
     # Redireciona a saída de fdisk para /dev/null para NÃO POLUIR stdout/stderr,
@@ -194,58 +198,79 @@ function partition_instructions() {
 # Seleciona o disco a ser usado
 function select_disk() {
     echo "DEBUG: Executando select_disk()" >> "$DISK_LOG_FILE"
-    local selected_disk=""
-    local clean_disks
-    local lvm_candidate_disks
+    local selected_disk_name=""
+    local clean_disks_names
+    local lvm_candidate_disks_names
+    declare -A disk_map # Array associativo para mapear números para nomes de disco
 
     # Captura as saídas das subfunções (que só devem retornar o nome do disco via stdout),
     # mas direcione DEBUG/ERROS delas para o log.
-    clean_disks=$(get_clean_disks 2>> "$DISK_LOG_FILE")
-    lvm_candidate_disks=$(get_lvm_candidate_disks 2>> "$DISK_LOG_FILE")
+    clean_disks_names=$(get_clean_disks 2>> "$DISK_LOG_FILE")
+    lvm_candidate_disks_names=$(get_lvm_candidate_disks 2>> "$DISK_LOG_FILE")
 
-    echo "DEBUG: clean_disks (saída de get_clean_disks): '$clean_disks'" >> "$DISK_LOG_FILE"
-    echo "DEBUG: lvm_candidate_disks (saída de get_lvm_candidate_disks): '$lvm_candidate_disks'" >> "$DISK_LOG_FILE"
+    echo "DEBUG: clean_disks (saída de get_clean_disks): '$clean_disks_names'" >> "$DISK_LOG_FILE"
+    echo "DEBUG: lvm_candidate_disks (saída de get_lvm_candidate_disks): '$lvm_candidate_disks_names'" >> "$DISK_LOG_FILE"
 
-    if [ -z "$clean_disks" ] && [ -z "$lvm_candidate_disks" ]; then
+    if [ -z "$clean_disks_names" ] && [ -z "$lvm_candidate_disks_names" ]; then
         error_exit "NÃO HÁ DISCOS DISPONÍVEIS (nem limpos, nem particionados sem LVM) para serem configurados. Verifique 'lsblk'."
     fi
 
-    # Exibição dos discos para o usuário (redirecionado para stderr para não ser capturado por $(select_disk))
-    if [ -n "$clean_disks" ]; then
-        echo -e "\n${C_BLUE}DISCOS COMPLETAMENTE LIMPOS (sem partições):${C_RESET}\n" >&2
-        local disk_pattern=$(echo "$clean_disks" | tr ' ' '|' | sed 's/|$//')
-        if [ -n "$disk_pattern" ]; then
-             lsblk | grep -E "$disk_pattern" >&2
-        fi
+    local counter=1
+    echo -e "\n${C_BLUE}DISCOS DISPONÍVEIS PARA CONFIGURAÇÃO:${C_RESET}\n" >&2
+    echo -e "${C_YELLOW}--- Discos COMPLETAMENTE LIMPOS (sem partições): ---${C_RESET}" >&2
+    if [ -n "$clean_disks_names" ]; then
+        for disk_name in $clean_disks_names; do
+            disk_map["$counter"]="$disk_name"
+            echo -e "  ${C_BLUE}${counter}.${C_RESET} /dev/${disk_name} ($(lsblk -no SIZE /dev/${disk_name} | head -n1)) - Limpo" | tee -a "$DISK_LOG_FILE" >&2
+            counter=$((counter + 1))
+        done
+    else
+        echo -e "  ${C_YELLOW}(Nenhum disco completamente limpo encontrado)${C_RESET}" >&2
     fi
 
-    if [ -n "$lvm_candidate_disks" ]; then
-        if [ -n "$clean_disks" ]; then
-            echo "" >&2 # Adiciona uma linha em branco apenas se houver listagem anterior
-        fi
-        echo -e "${C_BLUE}DISCOS PARTICIONADOS SEM LVM (candidatos para LVM):${C_RESET}\n" >&2
-        local disk_pattern=$(echo "$lvm_candidate_disks" | tr ' ' '|' | sed 's/|$//')
-        if [ -n "$disk_pattern" ]; then
-            lsblk | grep -E "$disk_pattern" >&2
-        fi
+    echo -e "\n${C_YELLOW}--- Discos PARTICIONADOS SEM LVM (candidatos para LVM): ---${C_RESET}" >&2
+    if [ -n "$lvm_candidate_disks_names" ]; then
+        for disk_name in $lvm_candidate_disks_names; do
+            disk_map["$counter"]="$disk_name"
+            echo -e "  ${C_BLUE}${counter}.${C_RESET} /dev/${disk_name} ($(lsblk -no SIZE /dev/${disk_name} | head -n1)) - Particionado (sem LVM)" | tee -a "$DISK_LOG_FILE" >&2
+            counter=$((counter + 1))
+        done
+    else
+        echo -e "  ${C_YELLOW}(Nenhum disco particionado sem LVM encontrado)${C_RESET}" >&2
     fi
     
-    echo "" >&2 # Linha em branco para melhor leitura
-    # O input do usuário também vai para stderr para não poluir o stdout da função
-    read -p "INFORME O DISCO (ex: sda, sdb) para particionar: " selected_disk >&2
-    echo "DEBUG: Disco selecionado pelo usuário: $selected_disk" >> "$DISK_LOG_FILE"
+    local choice=""
+    while true; do
+        echo "" >&2 # Linha em branco para melhor leitura
+        read -p "INFORME O NÚMERO DO DISCO DESEJADO (ou 'q' para sair): " choice >&2
+        echo "DEBUG: Escolha do usuário para disco: $choice" >> "$DISK_LOG_FILE"
+
+        if [[ "$choice" == "q" ]]; then
+            error_exit "Usuário optou por encerrar o script durante a seleção do disco."
+        elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ -n "${disk_map[$choice]}" ]]; then
+            selected_disk_name="${disk_map[$choice]}"
+            echo "DEBUG: Disco selecionado via número: $selected_disk_name" >> "$DISK_LOG_FILE"
+            break # Saída do loop se o número for válido e corresponder a um disco
+        else
+            echo -e "${C_RED}Opção inválida. Por favor, digite um número da lista ou 'q' para sair.${C_RESET}" >&2
+        fi
+    done
 
     # Validação e ação baseada no disco selecionado
-    if echo "$clean_disks" | grep -wq "$selected_disk"; then
+    if echo "$clean_disks_names" | grep -wq "$selected_disk_name"; then
+        echo -e "\n${C_BLUE}Você selecionou um disco LIMPO: /dev/${selected_disk_name}${C_RESET}" | tee -a "$DISK_LOG_FILE" >&2
         # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
         # e seu stderr (que inclui as mensagens do 'tee') para o DISK_LOG_FILE.
-        partition_instructions "$selected_disk" >/dev/null 2>> "$DISK_LOG_FILE"
-        echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
-    elif echo "$lvm_candidate_disks" | grep -wq "$selected_disk"; then
-        echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
-    else
-        error_exit "O disco '$selected_disk' não está na lista de discos disponíveis ou foi digitado incorretamente."
+        partition_instructions "$selected_disk_name" >/dev/null 2>> "$DISK_LOG_FILE"
+    elif echo "$lvm_candidate_disks_names" | grep -wq "$selected_disk_name"; then
+        echo -e "\n${C_BLUE}Você selecionou um disco PARTICIONADO SEM LVM: /dev/${selected_disk_name}${C_RESET}" | tee -a "$DISK_LOG_FILE" >&2
+        echo -e "${C_YELLOW}ATENÇÃO: Você selecionou um disco que JÁ POSSUI PARTIÇÕES. O script criará uma nova partição LVM (8e) nele, sobrescrevendo a partição ${PARTITION_NUMBER} se ela existir.${C_RESET}" | tee -a "$DISK_LOG_FILE" >&2
+        # Mesmo que já particionado, chamamos partition_instructions para garantir que a partição LVM (8e) seja criada/atualizada.
+        # Isto é um comportamento que pode ser ajustado se a ideia for APENAS usar partições LVM existentes em discos candidatos.
+        partition_instructions "$selected_disk_name" >/dev/null 2>> "$DISK_LOG_FILE"
     fi
+    
+    echo "$selected_disk_name" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
 }
 
 function add_disk_to_lvm() {
@@ -262,7 +287,6 @@ function add_disk_to_lvm() {
 
     # Cria Physical Volume (PV)
     echo -e "${C_BLUE}Criando Physical Volume em ${partition_path}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    # Adicionado o '-y' para aceitar automaticamente a limpeza de assinaturas existentes
     pvcreate -y "$partition_path" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local pvcreate_status="${PIPESTATUS[0]}"
     echo "DEBUG: pvcreate status: $pvcreate_status" >> "$LVM_LOG_FILE"
@@ -270,16 +294,22 @@ function add_disk_to_lvm() {
         error_exit "Falha ao criar Physical Volume em ${partition_path}. Pode ser que já exista um PV ou a partição não seja do tipo '8e'."
     fi
 
-    # Input do nome do Volume Group
-    read -p "INFORME O NOME DO VOLUME GROUP (ex: vg_dados): " vg_name
-    echo "DEBUG: Nome do VG informado: $vg_name" >> "$LVM_LOG_FILE"
-    if [[ -z "$vg_name" || "$vg_name" != vg_* ]]; then
-        error_exit "Nome do Volume Group inválido. Use o formato 'vg_NOME'."
-    fi
+    local vg_name=""
+    while true; do
+        read -p "INFORME O NOME DO VOLUME GROUP (ex: vg_DADOS) ou digite 'q' para sair: " vg_name
+        echo "DEBUG: Nome do VG informado: $vg_name" >> "$LVM_LOG_FILE"
+        
+        if [[ "$vg_name" == "q" ]]; then
+            error_exit "Usuário optou por encerrar o script durante a entrada do Volume Group."
+        elif [[ -z "$vg_name" || "$vg_name" != vg_* ]]; then
+            echo -e "${C_RED}Nome do Volume Group inválido. Use o formato 'vg_NOME'. Tente novamente.${C_RESET}" >&2
+        else
+            break # Saída do loop se o nome for válido
+        fi
+    done
 
     # Cria Volume Group (VG)
     echo -e "${C_BLUE}Criando Volume Group ${vg_name}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    # Adicionado o '-y' para aceitar automaticamente a limpeza de assinaturas existentes
     vgcreate -y "$vg_name" "$partition_path" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local vgcreate_status="${PIPESTATUS[0]}"
     echo "DEBUG: vgcreate status: $vgcreate_status" >> "$LVM_LOG_FILE"
@@ -287,16 +317,22 @@ function add_disk_to_lvm() {
         error_exit "Falha ao criar Volume Group ${vg_name}. Pode ser que já exista um VG com este nome."
     fi
 
-    # Input do nome do Logical Volume
-    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_apps): " lv_name
-    echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
-    if [[ -z "$lv_name" || "$lv_name" != lv_* ]]; then
-        error_exit "Nome do Logical Volume inválido. Use o formato 'lv_NOME'."
-    fi
+    local lv_name=""
+    while true; do
+        read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_APPS) ou digite 'q' para sair: " lv_name
+        echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
+
+        if [[ "$lv_name" == "q" ]]; then
+            error_exit "Usuário optou por encerrar o script durante a entrada do Logical Volume."
+        elif [[ -z "$lv_name" || "$lv_name" != lv_* ]]; then
+            echo -e "${C_RED}Nome do Logical Volume inválido. Use o formato 'lv_NOME'. Tente novamente.${C_RESET}" >&2
+        else
+            break # Saída do loop se o nome for válido
+        fi
+    done
 
     # Cria Logical Volume (LV) usando todo o espaço livre do VG
     echo -e "${C_BLUE}Criando Logical Volume ${lv_name} em ${vg_name}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    # Adicionado o '-y' para aceitar automaticamente a limpeza de assinaturas existentes
     lvcreate -l 100%FREE -n "$lv_name" "$vg_name" -y >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local lvcreate_status="${PIPESTATUS[0]}"
     echo "DEBUG: lvcreate status: $lvcreate_status" >> "$LVM_LOG_FILE"
@@ -316,15 +352,24 @@ function add_disk_to_lvm() {
         error_exit "Falha ao formatar ${lv_path}."
     fi
 
-    # Input do ponto de montagem
-    read -p "INFORME UM PONTO DE MONTAGEM (ex: /mnt/dados). Será criado se não existir: " mount_point
-    echo "DEBUG: Ponto de montagem informado: $mount_point" >> "$LVM_LOG_FILE"
-    if [ -z "$mount_point" ]; then
-        error_exit "Ponto de montagem não pode ser vazio."
-    fi
-    if [[ "$mount_point" != /* ]]; then
-        error_exit "Ponto de montagem inválido. Deve começar com '/'. Ex: /mnt/dados."
-    fi
+    local mount_point=""
+    while true; do
+        read -p "INFORME UM PONTO DE MONTAGEM (ex: /DADOS). Será criado se não existir: " mount_point
+        echo "DEBUG: Ponto de montagem informado (original): '$mount_point'" >> "$LVM_LOG_FILE"
+
+        if [[ "$mount_point" == "q" ]]; then
+            error_exit "Usuário optou por encerrar o script durante a entrada do ponto de montagem."
+        elif [ -z "$mount_point" ]; then
+            echo -e "${C_RED}Ponto de montagem não pode ser vazio. Tente novamente ou digite 'q' para sair.${C_RESET}" >&2
+        else
+            # Adiciona '/' se não começar com ele
+            if [[ "$mount_point" != /* ]]; then
+                mount_point="/$mount_point"
+                echo "DEBUG: Ponto de montagem ajustado para: '$mount_point'" >> "$LVM_LOG_FILE"
+            fi
+            break # Saída do loop se o ponto de montagem for válido
+        fi
+    done
 
     # Cria o ponto de montagem e monta o LV
     echo -e "${C_BLUE}Criando ponto de montagem ${mount_point} e montando o LV...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
@@ -338,9 +383,7 @@ function add_disk_to_lvm() {
 
     # Adiciona ao fstab para montagem persistente
     echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    persisttab=`df -hT | grep -i "$mount_point" | tr -s " " | cut -d" " -f 1,7`
-    echo "$persisttab ext4 defaults 1 2" >> /etc/fstab
-    #echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
+    echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
     if [ "$fstab_status" -ne 0 ]; then
