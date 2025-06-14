@@ -242,11 +242,8 @@ function select_disk() {
         # e seu stderr (que inclui as mensagens do 'tee') para o DISK_LOG_FILE.
         partition_instructions "$selected_disk" >/dev/null 2>> "$DISK_LOG_FILE"
         echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
-    elif echo "$lvm_candidate_disks" | grep -wq "$selected_disk"; then
-        echo -e "\n${C_YELLOW}Por favor, certifique-se de que a partição correta (ex: ${selected_disk}${PARTITION_NUMBER}) já está formatada como 'Linux LVM (8e)' antes de prosseguir.${C_RESET}" >&2
-        # Input do usuário também vai para stderr
-        read -p "Pressione ENTER para continuar (ou CTRL+C para sair e ajustar as partições): " >&2
-        echo "DEBUG: Usuário pressionou ENTER para continuar com o disco $selected_disk." >> "$DISK_LOG_FILE"
+    elif 
+        echo "$lvm_candidate_disks" | grep -wq "$selected_disk"; then
         echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
     else
         error_exit "O disco '$selected_disk' não está na lista de discos disponíveis ou foi digitado incorretamente."
