@@ -151,9 +151,13 @@ function partition_instructions() {
     
     echo "DEBUG: Executando partition_instructions para $disk_path" >> "$DISK_LOG_FILE"
 
-    # Mensagens para o usuário (exibidas no terminal via tee, logadas via tee)
-    echo -e "\n${C_YELLOW}ATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE...${C_RESET}" | tee -a "$DISK_LOG_FILE"
+    echo -e "\n${C_YELLOW}ATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE: ${disk_path}${C_RESET}" | tee -a "$DISK_LOG_FILE"
+    echo -e "${C_YELLOW}Todas as informações em ${disk_path} serão perdidas.${C_RESET}" | tee -a "$DISK_LOG_FILE"
     echo -e "${C_YELLOW}Será criada uma única partição primária, tipo 'Linux LVM (8e)', ocupando todo o disco.${C_RESET}" | tee -a "$DISK_LOG_FILE"
+
+    echo "DEBUG: Limpando assinaturas existentes em $disk_path" >> "$DISK_LOG_FILE"
+    # Redireciona stdout e stderr para /dev/null, e erros para o log
+    wipefs -a "$disk_path" >/dev/null 2>>"$DISK_LOG_FILE" || echo "WARNING: wipefs falhou ou teve saída de erro em $disk_path." >> "$DISK_LOG_FILE"
 
     echo "DEBUG: Executando fdisk automatizado em $disk_path" >> "$DISK_LOG_FILE"
     # Redireciona a saída de fdisk para /dev/null para NÃO POLUIR stdout/stderr,
@@ -191,61 +195,33 @@ function partition_instructions() {
     # Apenas suas mensagens informativas e de debug.
 }
 
-# Seleciona o disco a ser usado
+# Modificada para selecionar o primeiro disco limpo automaticamente
 function select_disk() {
-    echo "DEBUG: Executando select_disk()" >> "$DISK_LOG_FILE"
-    local selected_disk=""
-    local clean_disks
-    local lvm_candidate_disks
+    echo "DEBUG: Executando select_disk() para encontrar o primeiro disco limpo." >> "$DISK_LOG_FILE"
+    local first_clean_disk=""
 
-    # Captura as saídas das subfunções (que só devem retornar o nome do disco via stdout),
-    # mas direcione DEBUG/ERROS delas para o log.
-    clean_disks=$(get_clean_disks 2>> "$DISK_LOG_FILE")
-    lvm_candidate_disks=$(get_lvm_candidate_disks 2>> "$DISK_LOG_FILE")
+    # Captura a saída de get_clean_disks (que só retorna o nome do disco via stdout)
+    # e redireciona DEBUG/ERROS para o log.
+    local clean_disks=$(get_clean_disks 2>> "$DISK_LOG_FILE")
 
-    echo "DEBUG: clean_disks (saída de get_clean_disks): '$clean_disks'" >> "$DISK_LOG_FILE"
-    echo "DEBUG: lvm_candidate_disks (saída de get_lvm_candidate_disks): '$lvm_candidate_disks'" >> "$DISK_LOG_FILE"
+    echo "DEBUG: Discos limpos encontrados: '$clean_disks'" >> "$DISK_LOG_FILE"
 
-    if [ -z "$clean_disks" ] && [ -z "$lvm_candidate_disks" ]; then
-        error_exit "NÃO HÁ DISCOS DISPONÍVEIS (nem limpos, nem particionados sem LVM) para serem configurados. Verifique 'lsblk'."
+    if [ -z "$clean_disks" ]; then
+        error_exit "NÃO HÁ DISCOS COMPLETAMENTE LIMPOS disponíveis para configuração automática. O script requer um disco limpo."
     fi
 
-    # Exibição dos discos para o usuário (redirecionado para stderr para não ser capturado por $(select_disk))
-    if [ -n "$clean_disks" ]; then
-        echo -e "\n${C_BLUE}DISCOS COMPLETAMENTE LIMPOS (sem partições):${C_RESET}\n" >&2
-        local disk_pattern=$(echo "$clean_disks" | tr ' ' '|' | sed 's/|$//')
-        if [ -n "$disk_pattern" ]; then
-             lsblk | grep -E "$disk_pattern" >&2
-        fi
-    fi
-
-    if [ -n "$lvm_candidate_disks" ]; then
-        if [ -n "$clean_disks" ]; then
-            echo "" >&2 # Adiciona uma linha em branco apenas se houver listagem anterior
-        fi
-        echo -e "${C_BLUE}DISCOS PARTICIONADOS SEM LVM (candidatos para LVM):${C_RESET}\n" >&2
-        local disk_pattern=$(echo "$lvm_candidate_disks" | tr ' ' '|' | sed 's/|$//')
-        if [ -n "$disk_pattern" ]; then
-            lsblk | grep -E "$disk_pattern" >&2
-        fi
-    fi
+    # Pega o primeiro disco da lista de discos limpos
+    first_clean_disk=$(echo "$clean_disks" | awk '{print $1}')
     
-    echo "" >&2 # Linha em branco para melhor leitura
-    # O input do usuário também vai para stderr para não poluir o stdout da função
-    read -p "INFORME O DISCO (ex: sda, sdb) para particionar: " selected_disk >&2
-    echo "DEBUG: Disco selecionado pelo usuário: $selected_disk" >> "$DISK_LOG_FILE"
+    # As mensagens informativas agora são enviadas para stderr (>&2)
+    echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
+    lsblk "/dev/${first_clean_disk}" | tee -a "$DISK_LOG_FILE" >&2 # Exibe e loga informações do disco selecionado, também para stderr
 
-    # Validação e ação baseada no disco selecionado
-    if echo "$clean_disks" | grep -wq "$selected_disk"; then
-        # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
-        # e seu stderr (que inclui as mensagens do 'tee') para o DISK_LOG_FILE.
-        partition_instructions "$selected_disk" >/dev/null 2>> "$DISK_LOG_FILE"
-        echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
-    elif echo "$lvm_candidate_disks" | grep -wq "$selected_disk"; then
-        echo "$selected_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
-    else
-        error_exit "O disco '$selected_disk' não está na lista de discos disponíveis ou foi digitado incorretamente."
-    fi
+    # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
+    # e seu stderr (que inclui as mensagens do 'tee') para o DISK_LOG_FILE.
+    partition_instructions "$first_clean_disk" >/dev/null 2>> "$DISK_LOG_FILE"
+    
+    echo "$first_clean_disk" # Este é o ÚNICO valor que deve ser impresso em stdout para ser capturado
 }
 
 function add_disk_to_lvm() {
@@ -338,9 +314,8 @@ function add_disk_to_lvm() {
 
     # Adiciona ao fstab para montagem persistente
     echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    persisttab=`df -hT | grep -i "$mount_point" | tr -s " " | cut -d" " -f 1,7`
-    echo "$persisttab ext4 defaults 1 2" >> /etc/fstab
-    #echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
+    # Usando diretamente o caminho do LV para maior robustez
+    echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
     if [ "$fstab_status" -ne 0 ]; then
@@ -351,42 +326,48 @@ function add_disk_to_lvm() {
 }
 
 # --- Execução Principal ---
+main() {
+    mkdir -p /var/log/add_disk
+    echo "DEBUG: Verificando privilégios de root." >> "$DISK_LOG_FILE"
+    if [ "$(id -u)" -ne 0 ]; then
+        error_exit "Este script deve ser executado como root. Use 'sudo ./add_disk.sh'."
+    fi
 
-echo "DEBUG: Verificando privilégios de root." >> "$DISK_LOG_FILE"
-if [ "$(id -u)" -ne 0 ]; then
-    error_exit "Este script deve ser executado como root. Use 'sudo ./add_disk.sh'."
-fi
+    echo "DEBUG: Criando diretório de logs: $LOG_DIR" >> "$DISK_LOG_FILE"
+    mkdir -p "$LOG_DIR"
 
-echo "DEBUG: Criando diretório de logs: $LOG_DIR" >> "$DISK_LOG_FILE"
-mkdir -p "$LOG_DIR"
+    echo -e "\n${C_BLUE}Opção selecionada: Adicionar um disco ao sistema (Modo Automático - Primeiro Disco Limpo)${C_RESET}\n" # Mensagem para tela
 
-echo -e "\n${C_BLUE}Opção selecionada: Adicionar um disco ao sistema${C_RESET}\n" # Mensagem para tela
+    echo "DEBUG: Chamando scan_new_disks em background." >> "$DISK_LOG_FILE"
+    scan_new_disks &
+    scan_pid=$!
+    echo "DEBUG: PID do scan_new_disks: $scan_pid" >> "$DISK_LOG_FILE"
+    wait "$scan_pid" # Espera a conclusão do scan
+    echo "DEBUG: scan_new_disks concluído." >> "$DISK_LOG_FILE"
 
-echo "DEBUG: Chamando scan_new_disks em background." >> "$DISK_LOG_FILE"
-scan_new_disks &
-scan_pid=$!
-echo "DEBUG: PID do scan_new_disks: $scan_pid" >> "$DISK_LOG_FILE"
-wait "$scan_pid" # Espera a conclusão do scan
-echo "DEBUG: scan_new_disks concluído." >> "$DISK_LOG_FILE"
+    echo "DEBUG: Registrando logs iniciais." >> "$DISK_LOG_FILE"
+    record_logs
 
-echo "DEBUG: Registrando logs iniciais." >> "$DISK_LOG_FILE"
-record_logs
+    echo "DEBUG: Chamando select_disk para identificação automática." >> "$DISK_LOG_FILE"
+    # Chama a função select_disk, que agora seleciona o primeiro disco limpo e o particiona.
+    # Captura apenas o nome do disco selecionado em SELECTED_DISK.
+    SELECTED_DISK=$(select_disk)
+    echo "DEBUG: Disco selecionado e particionado por select_disk: $SELECTED_DISK" >> "$DISK_LOG_FILE"
 
-echo "DEBUG: Chamando select_disk." >> "$DISK_LOG_FILE"
-# Chama a função select_disk e captura apenas o nome do disco selecionado em SELECTED_DISK
-SELECTED_DISK=$(select_disk)
-echo "DEBUG: Disco selecionado por select_disk: $SELECTED_DISK" >> "$DISK_LOG_FILE"
+    # Verifica se o disco selecionado não está vazio antes de continuar
+    if [ -z "$SELECTED_DISK" ]; then
+        error_exit "Nenhum disco foi selecionado automaticamente. O script será encerrado."
+    fi
 
-# Verifica se o disco selecionado não está vazio antes de continuar
-if [ -z "$SELECTED_DISK" ]; then
-    error_exit "Nenhum disco foi selecionado. O script será encerrado."
-fi
+    echo "DEBUG: Chamando add_disk_to_lvm com o disco: $SELECTED_DISK" >> "$DISK_LOG_FILE"
+    add_disk_to_lvm "$SELECTED_DISK"
 
-echo "DEBUG: Chamando add_disk_to_lvm com o disco: $SELECTED_DISK" >> "$DISK_LOG_FILE"
-add_disk_to_lvm "$SELECTED_DISK"
+    echo "DEBUG: Exibindo mensagem de sucesso." >> "$DISK_LOG_FILE"
+    success_message
 
-echo "DEBUG: Exibindo mensagem de sucesso." >> "$DISK_LOG_FILE"
-success_message
+    echo "DEBUG: Script finalizado com sucesso." >> "$DISK_LOG_FILE"
+    exit 0
+}
 
-echo "DEBUG: Script finalizado com sucesso." >> "$DISK_LOG_FILE"
-exit 0
+# Inicia a execução do script
+main
