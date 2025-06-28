@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# add_disk.sh - Adicionar um disco ao sistema
+# add_disk_available.sh - Adicionar um disco ao sistema
 #
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
@@ -15,7 +15,7 @@
 #   - e2fsprogs (para mkfs.ext4)
 #
 # Exemplo de execução (executar como root):
-#   # sudo ./add_disk.sh
+#   # sudo ./add_disk_available.sh
 # ------------------------------------------------------------------------ #
 
 # --- Configurações Iniciais e Variáveis Globais ---
@@ -247,7 +247,7 @@ function add_disk_to_lvm() {
     fi
 
     # Input do nome do Volume Group
-    read -p "INFORME O NOME DO VOLUME GROUP (ex: vg_dados): " vg_name
+    read -p "INFORME O NOME DO VOLUME GROUP (ex: vg_DADOS): " vg_name
     echo "DEBUG: Nome do VG informado: $vg_name" >> "$LVM_LOG_FILE"
     if [[ -z "$vg_name" || "$vg_name" != vg_* ]]; then
         error_exit "Nome do Volume Group inválido. Use o formato 'vg_NOME'."
@@ -264,7 +264,7 @@ function add_disk_to_lvm() {
     fi
 
     # Input do nome do Logical Volume
-    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_apps): " lv_name
+    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_APPS): " lv_name
     echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
     if [[ -z "$lv_name" || "$lv_name" != lv_* ]]; then
         error_exit "Nome do Logical Volume inválido. Use o formato 'lv_NOME'."
