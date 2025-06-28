@@ -89,8 +89,8 @@ remover_disco() {
 
     # Remover entrada do fstab usando o caminho /dev/mapper/VG_NAME-LV_NAME
     echo "Removendo entrada de ${lv_mapper_path} do /etc/fstab..." | tee -a "$LOG_FILE"
-    local escaped_lv_mapper_path=$(echo "$lv_mapper_path" | sed 's/\//\\\//g')
-    sed -i.bak "/^${escaped_lv_mapper_path}/d" /etc/fstab >> "$LOG_FILE" 2>&1
+    local path_fstab=$(echo "/dev/${vg}/${lv}")
+    sed -i.bak "\|^$path_fstab|d" /etc/fstab >> "$LOG_FILE" 2>&1
     if [[ $? -ne 0 ]]; then
         echo "${YELLOW}Aviso: Não foi possível remover a entrada de ${lv_mapper_path} do /etc/fstab automaticamente. Verifique manualmente.${NC}" | tee -a "$LOG_FILE"
     else
@@ -115,13 +115,19 @@ echo -e "\n${YELLOW}Opção selecionada: Remover um disco que tenha volumes LVM 
 echo -e "\n${YELLOW}ATENÇÃO!!! -> AÇÃO IRREVERSÍVEL${NC}"
 echo -e "\nDiscos disponíveis no sistema:"
 lsblk | tee -a "$LOG_FILE" # Adicionado tee para registrar no log também
-echo " " 
+echo " "
 read -rp "INFORME O DISCO QUE SERÁ REMOVIDO [Exemplo: sda, sdb, etc.]? " DISK_INPUT
 
 # Validação do disco informado
 if [[ -z "$DISK_INPUT" ]]; then
     erro "Nenhum disco foi informado. Encerrando."
 fi
+
+# --- Condição de segurança para discos essenciais ---
+if [[ "$DISK_INPUT" == "sda" || "$DISK_INPUT" == "sdb" || "$DISK_INPUT" == "sdc" ]]; then
+    erro "A remoção dos discos '$DISK_INPUT' (sda, sdb, sdc) não é permitida por este script para evitar perda de dados críticos. Se realmente precisa remover um desses discos, faça-o manualmente com extrema cautela."
+fi
+# --- Fim da condição de segurança ---
 
 # Verifica se o disco existe e é um disco completo (não uma partição)
 DISK_PATH="/dev/$DISK_INPUT"
@@ -188,4 +194,3 @@ echo -e "\n${YELLOW}PROSSEGUINDO COM A REMOÇÃO AUTOMÁTICA...${NC}" | tee -a "
 
 # Chama a função de remoção
 remover_disco "$DISK_INPUT" "$VG_NAME" "$LV_NAME" "$MOUNT_POINT"
-

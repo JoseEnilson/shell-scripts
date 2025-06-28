@@ -264,7 +264,7 @@ function select_disk() {
         partition_instructions "$selected_disk_name" >/dev/null 2>> "$DISK_LOG_FILE"
     elif echo "$lvm_candidate_disks_names" | grep -wq "$selected_disk_name"; then
         echo -e "\n${C_BLUE}Você selecionou um disco PARTICIONADO SEM LVM: /dev/${selected_disk_name}${C_RESET}" | tee -a "$DISK_LOG_FILE" >&2
-        echo -e "${C_YELLOW}ATENÇÃO: Você selecionou um disco que JÁ POSSUI PARTIÇÕES. O script criará uma nova partição LVM (8e) nele, sobrescrevendo a partição ${PARTITION_NUMBER} se ela existir.${C_RESET}" | tee -a "$DISK_LOG_FILE" >&2
+        
         # Mesmo que já particionado, chamamos partition_instructions para garantir que a partição LVM (8e) seja criada/atualizada.
         # Isto é um comportamento que pode ser ajustado se a ideia for APENAS usar partições LVM existentes em discos candidatos.
         partition_instructions "$selected_disk_name" >/dev/null 2>> "$DISK_LOG_FILE"
@@ -319,7 +319,7 @@ function add_disk_to_lvm() {
 
     local lv_name=""
     while true; do
-        read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_APPS) ou digite 'q' para sair: " lv_name
+        read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_DADOS) ou digite 'q' para sair: " lv_name
         echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
 
         if [[ "$lv_name" == "q" ]]; then
@@ -354,7 +354,7 @@ function add_disk_to_lvm() {
 
     local mount_point=""
     while true; do
-        read -p "INFORME UM PONTO DE MONTAGEM (ex: /DADOS). Será criado se não existir: " mount_point
+        read -p "INFORME UM PONTO DE MONTAGEM (ex: /dados). Será criado se não existir: " mount_point
         echo "DEBUG: Ponto de montagem informado (original): '$mount_point'" >> "$LVM_LOG_FILE"
 
         if [[ "$mount_point" == "q" ]]; then
