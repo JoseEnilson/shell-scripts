@@ -1,0 +1,55 @@
+Cenário 1: O grupo de volume vg_teste4 tem espaço livre suficiente em outros discos ou você pode adicionar um novo disco.
+
+# O disco não pode ter partições
+
+vgextend vg_teste1 /dev/sdh
+
+--------------
+
+1 - Migre os dados do disco:
+
+sudo pvmove -v /dev/sdd1 
+
+2 - Remova o disco do grupo de volume:
+
+sudo vgreduce vg_teste1 /dev/sdd1
+
+3 - Remova a assinatura LVM do disco:
+
+sudo pvremove /dev/sdd1 
+
+4 - Remova o disco físico do sistema (opcional, dependendo do hardware):
+
+echo 1 | sudo tee /sys/block/sdd/device/delete 
+
+========================================================================
+Cenário 2: O grupo de volume vg_teste4 não tem espaço livre suficiente e você não pode adicionar um novo disco.
+
+ATENÇÃO!!!!: PERDE OS DADOS
+
+1 - Desmonte os Volumes Lógicos:
+Se houver volumes lógicos montados do vg_teste4, você precisará desmontá-los
+
+sudo umount /caminho/do/seu/ponto_de_montagem
+
+2 - Desative os Volumes Lógicos:
+
+sudo lvchange -an /dev/vg_teste4/seu_lv_1
+sudo lvchange -an /dev/vg_teste4/seu_lv_2
+
+3 - Remova os Volumes Lógicos:
+
+sudo lvremove /dev/vg_teste4/seu_lv_1
+sudo lvremove /dev/vg_teste4/seu_lv_2
+
+4 - Remova o grupo de volume vg_teste4:
+
+sudo vgremove vg_teste4
+
+5 - Remova a assinatura LVM do disco:
+
+sudo pvremove /dev/sdd1
+
+6 - Remova o disco físico do sistema (opcional):
+
+echo 1 | sudo tee /sys/block/sdd/device/delete

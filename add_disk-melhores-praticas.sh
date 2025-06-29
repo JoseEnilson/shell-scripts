@@ -433,3 +433,4 @@ success_message
 
 echo "DEBUG: Script finalizado com sucesso." >> "$DISK_LOG_FILE"
 exit 0
+

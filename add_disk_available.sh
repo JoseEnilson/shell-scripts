@@ -264,7 +264,7 @@ function add_disk_to_lvm() {
     fi
 
     # Input do nome do Logical Volume
-    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_APPS): " lv_name
+    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_DADOS): " lv_name
     echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
     if [[ -z "$lv_name" || "$lv_name" != lv_* ]]; then
         error_exit "Nome do Logical Volume inválido. Use o formato 'lv_NOME'."
@@ -293,13 +293,13 @@ function add_disk_to_lvm() {
     fi
 
     # Input do ponto de montagem
-    read -p "INFORME UM PONTO DE MONTAGEM (ex: /mnt/dados). Será criado se não existir: " mount_point
+    read -p "INFORME UM PONTO DE MONTAGEM (ex: /dados). Será criado se não existir: " mount_point
     echo "DEBUG: Ponto de montagem informado: $mount_point" >> "$LVM_LOG_FILE"
     if [ -z "$mount_point" ]; then
         error_exit "Ponto de montagem não pode ser vazio."
     fi
     if [[ "$mount_point" != /* ]]; then
-        error_exit "Ponto de montagem inválido. Deve começar com '/'. Ex: /mnt/dados."
+        error_exit "Ponto de montagem inválido. Deve começar com '/'. Ex: /dados."
     fi
 
     # Cria o ponto de montagem e monta o LV
@@ -371,3 +371,4 @@ main() {
 
 # Inicia a execução do script
 main
+
