@@ -161,6 +161,7 @@ echo "  Grupo de Volumes (VG): $VG_NAME" | tee -a "$LOG_FILE"
 echo "  Volume Lógico (LV): $LV_NAME (Caminho /dev/mapper/$VG_NAME-$LV_NAME)" | tee -a "$LOG_FILE"
 
 echo -e "\nApós conferir os dados acima, se estiverem corretos, pressione a tecla ENTER para dar continuidade ou CTRL + C para encerrar.\n"
+read -p " "
 
 if [[ -n "$MOUNT_POINT" ]]; then
     echo "  Ponto de Montagem (se houver): $MOUNT_POINT" | tee -a "$LOG_FILE"
