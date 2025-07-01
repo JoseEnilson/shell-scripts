@@ -108,11 +108,8 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 echo -e "\n${YELLOW}Opção selecionada: Remover um disco que tenha volumes LVM associados${NC}\n" | tee "$LOG_FILE"
-# Remover a chamada a registrar_logs aqui para evitar duplicação inicial,
-# já que lsblk é exibido logo em seguida.
-# registrar_logs "$LOG_FILE" # Removido para evitar duplicação inicial
-
 echo -e "\n${YELLOW}ATENÇÃO!!! -> AÇÃO IRREVERSÍVEL${NC}"
+
 echo -e "\nDiscos disponíveis no sistema:"
 lsblk | tee -a "$LOG_FILE" # Adicionado tee para registrar no log também
 echo " "
@@ -147,33 +144,10 @@ if [[ -z "$LV_NAME" ]]; then
 fi
 
 # Verificar se o grupo de volumes tem mais de um disco
-COUNT_VG_DISKS=$(pvs -o pv_name --noheadings | grep -c "$VG_NAME")
-
-if [[ "$COUNT_VG_DISKS" -gt 1 ]]; then
-    echo -e "\n${RED}GRUPO DE VOLUME ('$VG_NAME') COM MAIS DE UM DISCO CONFIGURADO.${NC}" | tee -a "$LOG_FILE"
-    echo -e "${RED}FAÇA A REMOÇÃO DO DISCO MANUALMENTE, POIS A REMOÇÃO AUTOMÁTICA PODE COMPROMETER DADOS.${NC}\n" | tee -a "$LOG_FILE"
-    echo -e "--- ${YELLOW}SUGESTÕES${NC} ---\n"
-    echo -e "Método - 1 (Reduzindo o VG e movendo PVs):"
-    echo "  - Estender o tamanho de um dos discos existentes no grupo (se possível)."
-    echo "  - Usar 'growpart /dev/sdx 1' (se for partição)."
-    echo "  - Usar 'pvmove /dev/${DISK_INPUT}${PART_NUM}:FREE' para mover dados para o espaço livre do VG."
-    echo "  - Usar 'vgreduce $VG_NAME /dev/${DISK_INPUT}${PART_NUM}' para remover o PV do VG."
-    echo "  - Remover o disco físico: 'echo 1 > /sys/block/${DISK_INPUT}/device/delete'."
-    echo -e "\n---------------------\n"
-    echo -e "Método - 2 (Adicionando um novo disco e migrando):"
-    echo "  - Inserir um novo disco ao grupo de volume."
-    echo "  - Preparar o novo disco com 'fdisk' e 'pvcreate'."
-    echo "  - Usar 'vgextend $VG_NAME /dev/novo_disco_particao' para estender o grupo."
-    echo "  - Usar 'pvmove /dev/${DISK_INPUT}${PART_NUM}:FREE' para mover dados para o espaço livre do novo disco."
-    echo "  - Usar 'vgreduce $VG_NAME /dev/${DISK_INPUT}${PART_NUM}' no disco a ser removido."
-    echo "  - Remover o disco físico: 'echo 1 > /sys/block/${DISK_INPUT}/device/delete'."
-    echo -e "\n---------------------\n"
-    echo -e "Método - 3 (Migração de dados completa):"
-    echo "  - Migrar os dados dos volumes lógicos para outro armazenamento."
-    echo "  - Remover os LVs, VGs e PVs associados ao disco em questão."
-    echo "  - Remover o disco físico."
-    echo -e "\n"
-    erro "A remoção automática não é segura para grupos de volume com múltiplos discos."
+pvs -o vg_name --noheadings | sort | uniq -d | grep -i $VG_NAME > /dev/null
+if [ "$?" -eq 0 ]; then
+    echo "\n${YELLOW}O disco não pôde ser removido por meio deste script, visto que pertence a um grupo de volume que possui mais de um disco associado. Remova o disco manualmente para evitar a perda de dados.${NC}"
+    exit 0
 fi
 
 # Obter ponto de montagem (se houver)
@@ -185,6 +159,9 @@ echo "  Disco a ser removido: /dev/$DISK_INPUT" | tee -a "$LOG_FILE"
 echo "  Partição LVM: /dev/${DISK_INPUT}${PART_NUM}" | tee -a "$LOG_FILE"
 echo "  Grupo de Volumes (VG): $VG_NAME" | tee -a "$LOG_FILE"
 echo "  Volume Lógico (LV): $LV_NAME (Caminho /dev/mapper/$VG_NAME-$LV_NAME)" | tee -a "$LOG_FILE"
+
+echo -e "\nApós conferir os dados acima, se estiverem corretos, pressione a tecla ENTER para dar continuidade ou CTRL + C para encerrar.\n"
+
 if [[ -n "$MOUNT_POINT" ]]; then
     echo "  Ponto de Montagem (se houver): $MOUNT_POINT" | tee -a "$LOG_FILE"
 else
