@@ -146,7 +146,7 @@ fi
 # Verificar se o grupo de volumes tem mais de um disco
 pvs -o vg_name --noheadings | sort | uniq -d | grep -i $VG_NAME > /dev/null
 if [ "$?" -eq 0 ]; then
-    echo -e "\n${YELLOW}O disco não pôde ser removido por meio deste script, visto que pertence a um grupo de volume que possui mais de um disco associado. Remova o disco manualmente para evitar a perda de dados.${NC}"
+    echo -e "\n${YELLOW}O disco não pôde ser removido por meio deste script, visto que pertence a um grupo de volume que possui mais de um disco associado. Remova o disco manualmente para evitar a perda de dados.${NC}\n"
     exit 0
 fi
 
