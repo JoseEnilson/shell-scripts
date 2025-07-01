@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 PART_NUM=1
 LOG_FILE="/var/log/remove_disk/disk_remove_$(date +%Y%m%d_%H%M%S).log" # Log individual por execução
 LVM_LOG_FILE="/var/log/remove_disk/lvm_operations.log" # Log específico para operações LVM
-mkdir -p /var/log/remove_disk/
+
 # --- Funções ---
 
 # Função para exibir mensagens de erro e sair
@@ -102,6 +102,8 @@ remover_disco() {
 
 # --- Execução Principal ---
 
+# Diretório para os arquivos de logs
+mkdir -p /var/log/remove_disk
 # Verifica se o script está sendo executado como root
 if [[ "$EUID" -ne 0 ]]; then
     erro "Este script precisa ser executado como root. Use 'sudo ./remove_disk.sh'."
