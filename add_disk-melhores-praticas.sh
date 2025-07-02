@@ -383,7 +383,10 @@ function add_disk_to_lvm() {
 
     # Adiciona ao fstab para montagem persistente
     echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
+    local persisttab=$(echo "$lv_path" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
+    echo "$persisttab $mount_point ext4 defaults 1 2" >> /etc/fstab
+    #echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
+   
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
     if [ "$fstab_status" -ne 0 ]; then
