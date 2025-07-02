@@ -92,7 +92,7 @@ remover_disco() {
 
     # Remover entrada do fstab usando o caminho /dev/mapper/VG_NAME-LV_NAME
     echo "Removendo entrada de ${lv_mapper_path} do /etc/fstab..." | tee -a "$LOG_FILE"
-    local path_fstab=$(echo "/dev/${vg}-${lv}")
+    local path_fstab=$(echo "/dev/mapper/${vg}-${lv}")
     sed -i.bak "\|^$path_fstab|d" /etc/fstab >> "$LOG_FILE" 2>&1
     
     if [[ $? -ne 0 ]]; then
