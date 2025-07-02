@@ -23,6 +23,9 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Diretório para os arquivos de logs
+mkdir -p /var/log/remove_disk
+
 # --- Variáveis Globais ---
 PART_NUM=1
 LOG_FILE="/var/log/remove_disk/disk_remove_$(date +%Y%m%d_%H%M%S).log" # Log individual por execução
@@ -89,8 +92,9 @@ remover_disco() {
 
     # Remover entrada do fstab usando o caminho /dev/mapper/VG_NAME-LV_NAME
     echo "Removendo entrada de ${lv_mapper_path} do /etc/fstab..." | tee -a "$LOG_FILE"
-    local path_fstab=$(echo "/dev/${vg}/${lv}")
+    local path_fstab=$(echo "/dev/${vg}-${lv}")
     sed -i.bak "\|^$path_fstab|d" /etc/fstab >> "$LOG_FILE" 2>&1
+    
     if [[ $? -ne 0 ]]; then
         echo "${YELLOW}Aviso: Não foi possível remover a entrada de ${lv_mapper_path} do /etc/fstab automaticamente. Verifique manualmente.${NC}" | tee -a "$LOG_FILE"
     else
@@ -102,8 +106,6 @@ remover_disco() {
 
 # --- Execução Principal ---
 
-# Diretório para os arquivos de logs
-mkdir -p /var/log/remove_disk
 # Verifica se o script está sendo executado como root
 if [[ "$EUID" -ne 0 ]]; then
     erro "Este script precisa ser executado como root. Use 'sudo ./remove_disk.sh'."
