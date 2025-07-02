@@ -27,9 +27,10 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# --- Variáveis Globais ---
-# Arquivos de log
+# --- Diretório para os arquivos de log ---
 mkdir -p /var/log/resize_disk/
+
+# --- Variáveis Globais ---
 LOG_FILE="/var/log/resize_disk/disk_resize_$(date +%Y%m%d_%H%M%S).log" # Log individual por execução
 LVM_LOG_FILE="/var/log/resize_disk/lvm_operations.log" # Log específico para operações LVM
 

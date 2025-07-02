@@ -30,6 +30,9 @@ readonly C_YELLOW='\033[1;33m'
 readonly C_BLUE='\033[1;34m'
 readonly C_RESET='\033[0m'
 
+# Diretório para os arquivos de logs.
+mkdir -p /var/log/add_disk
+
 # Variáveis do script
 readonly LOG_DIR="/var/log/add_disk"
 readonly LVM_LOG_FILE="${LOG_DIR}/lvm.log"
