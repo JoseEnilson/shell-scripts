@@ -25,7 +25,7 @@ BAR_CHAR_DONE="#"
 BAR_CHAR_TODO="-"
 BAR_PERCENTAGE_SCALE=2
 PART_NUM=1
-
+LOG_DIR=/var/log/add_disk
 #-------------------------------- FUNCTIONS --------------------------------#
 
 function scanNewDisk() {
@@ -39,7 +39,7 @@ function sucesso() {
     echo -e "\n\n----------------------------- \n\033[1;33m << FSTAB >>\033[0m"
     cat /etc/fstab
     echo -e "\n\n----------------------------- \n\033[1;33m << LSBLK >> \033[0m"
-    lsblk    
+    lsblk
     echo -e "\n\n"
 }
 
@@ -80,7 +80,7 @@ function call_show_progress_bar() {
       echo -e "\n        DISCOS SENDO ESCANEADOS. AGUARDE ...\n"
       tasks_in_total=40
       for current_task in $(seq $tasks_in_total); do
-        sleep 0.2 
+        sleep 0.2
         show_progress $current_task $tasks_in_total
       done
     fi
@@ -92,7 +92,7 @@ function discosDisponiveis() {
             echo "Caso o disco já esteja particionado, tecle ENTER e \"AGUARDE...\" ou CTRL + C para encerrar."
             read -p " "
             lsblk
-            echo " " 
+            echo " "
             read -p "INFORME O DISCO [ sdx ]: " disk
         else
             echo -e "\n  \033[1;34m DISCOS DISPONIVEIS PARA PARTICIONAMENTOS: \n\033[0m"
@@ -104,11 +104,11 @@ function discosDisponiveis() {
             discoList=$(echo "$DISKAVAILABLE" | grep -i $disk) # Verifica se o disco informado está disponível
             test -z "$discoList" && erro && exit 1
             instrucoesFSDISK # function
-            #pvcreate -y /dev/$disk$PART_NUM -ff >> lvm.log
+
             if [ "$?" -eq 5 ]; then
                 erro
             fi
-        fi 
+        fi
 }
 
 instrucoesFSDISK() {
@@ -146,14 +146,17 @@ function logs() {
 # ------------------------------- EXECUCAO ------------------------------- #
 echo -e "\nOpção selecionada: Adicionar um disco a um grupo de volume\n"
 
-logs >>disk$(date +%Y%m%d).log # function
+# Diretório para os arquivos de logs.
+mkdir -p /var/log/add_disk
+
+logs >>$LOG_DIR/disk$(date +%Y%m%d).log # function
 # Função que escaneia os discos
-scanNewDisk & 
+scanNewDisk &
 # Função que chama a barra de progresso
 call_show_progress_bar
 
 # Função que lista os discos disponíveis para serem particionados
-discosDisponiveis      
+discosDisponiveis
 echo " "
 
 # A variável 'disk' vem da função 'discosDisponiveis'
@@ -163,10 +166,9 @@ echo " "
 echo -e "\n$(lvs)\n"
 read -p "INFORME O NOME DO VOLUME GROUP [ vg_NOME ]: " vg
 read -p "INFORME O NOME DO LOGICAL VOLUME [ lv_NOME ]: " lv
-vgextend $vg /dev/$disk$PART_NUM >>lvm.log
+vgextend $vg /dev/$disk$PART_NUM >>$LOG_DIR/lvm$(date +%Y%m%d).log
 test "$?" -ne 0 && erro
-lvextend -l +100%free /dev/mapper/$vg-$lv >>lvm.log
-resize2fs /dev/mapper/$vg-$lv >>lvm.log
+lvextend -l +100%free /dev/mapper/$vg-$lv >>$LOG_DIR/lvm$(date +%Y%m%d).log
+resize2fs /dev/mapper/$vg-$lv >>$LOG_DIR/lvm$(date +%Y%m%d).log
 sucesso
-logs >>disk$(date +%Y%m%d).log # functio
-
+logs >>$LOG_DIR/disk$(date +%Y%m%d).log # functio
