@@ -16,6 +16,7 @@
 # -----------------PACKAGE REQUIRED ----------------------------------------#
 # - cloud-utils-growpart (ou outro pacote que forneça 'growpart')
 # ------------------------------------------------------------------------ #
+
 # Configuração de ambiente para garantir consistência
 export LANG=C
 export LC_ALL=C
