@@ -16,10 +16,6 @@
 # -----------------PACKAGE REQUIRED ----------------------------------------#
 # - cloud-utils-growpart (ou outro pacote que forneça 'growpart')
 # ------------------------------------------------------------------------ #
-
-# Sai imediatamente se um comando falhar, se uma variável não for definida ou se um pipe falhar
-set -euo pipefail
-
 # Configuração de ambiente para garantir consistência
 export LANG=C
 export LC_ALL=C
