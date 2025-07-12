@@ -143,8 +143,7 @@ perform_resize() {
 
     echo "Redimensionando sistema de arquivos em '$lv_mapper_path'..." | tee -a "$LOG_FILE"
     resize2fs "$lv_mapper_path" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao redimensionar o sistema de arquivos em '$lv_mapper_path'."
-    echo "Sistema de arquivos redimensionado com sucesso." | tee -a "$LOG_FILE"
-
+ 
     sucesso # Exibe a mensagem de sucesso
     registrar_logs "$LOG_FILE" # Coleta e exibe os logs no final da operação
 }
