@@ -149,7 +149,7 @@ echo -e "\nOpção selecionada: Adicionar um disco a um grupo de volume\n"
 # Diretório para os arquivos de logs.
 mkdir -p /var/log/add_disk
 
-logs >>$LOG_DIR/disk$(date +%Y%m%d).log # function
+logs >>$LOG_DIR/disk_$(date +%Y%m%d_%H%M).log # function
 # Função que escaneia os discos
 scanNewDisk &
 # Função que chama a barra de progresso
@@ -171,4 +171,4 @@ test "$?" -ne 0 && erro
 lvextend -l +100%free /dev/mapper/$vg-$lv >>$LOG_DIR/lvm$(date +%Y%m%d).log
 resize2fs /dev/mapper/$vg-$lv >>$LOG_DIR/lvm$(date +%Y%m%d).log
 sucesso
-logs >>$LOG_DIR/disk$(date +%Y%m%d).log # functio
+logs >>$LOG_DIR/disk_$(date +%Y%m%d_%H%M).log
