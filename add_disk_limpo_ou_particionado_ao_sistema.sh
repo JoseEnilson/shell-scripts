@@ -20,7 +20,7 @@
 # ------------------------------------------------------------------------ #
 
 # --- Configurações Iniciais e Variáveis Globais ---
-set -euo pipefail # Sai imediatamente se um comando falhar, se uma variável não for definida ou se um pipe falhar
+# set -euo pipefail # Sai imediatamente se um comando falhar, se uma variável não for definida ou se um pipe falhar
 export LANG=C      # Garante a saída em inglês para parsing consistente de comandos
 
 # Cores para mensagens - Serão usadas apenas para mensagens que vão para a tela
