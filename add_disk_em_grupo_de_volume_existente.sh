@@ -14,7 +14,7 @@
 #-----------------PACKAGE REQUIRED ----------------------------------------#
 # - bc.x86_64
 # ------------------------------------------------------------------------ #
-
+set -euo pipefail # Sai imediatamente se um comando falhar, se uma variável não for definida ou se um pipe falhar
 # ------------------------------- VARIAVEIS ------------------------------ #
 LANG=C
 DISKSFORMAT=$(lsblk | grep -o "sd[a-z]" | uniq -d)
