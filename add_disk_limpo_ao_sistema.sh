@@ -218,6 +218,7 @@ function select_disk() {
     
     # As mensagens informativas agora são enviadas para stderr (>&2)
     echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
+    echo -e "${C_BLUE}AGUARDE A CONFIGURAÇÃO LVM TERMINAR ...${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2   
     lsblk "/dev/${first_clean_disk}" | tee -a "$DISK_LOG_FILE" >&2 # Exibe e loga informações do disco selecionado, também para stderr
 
     # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
