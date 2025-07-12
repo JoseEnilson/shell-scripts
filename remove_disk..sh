@@ -12,8 +12,6 @@
 #       # sudo ./remove_disk.sh
 #
 # ------------------------------------------------------------------------ #
-# Sai imediatamente se um comando falhar, se uma variável não for definida ou se um pipe falhar
-set -euo pipefail 
 
 # Configuração de ambiente
 export LANG=C
