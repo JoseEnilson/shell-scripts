@@ -28,8 +28,8 @@ mkdir -p /var/log/remove_disk
 
 # --- Variáveis Globais ---
 PART_NUM=1
-LOG_FILE="/var/log/remove_disk/disk_remove_$(date +%Y%m%d_%H%M%S).log" # Log individual por execução
-LVM_LOG_FILE="/var/log/remove_disk/lvm_operations.log" # Log específico para operações LVM
+LOG_FILE="/var/log/remove_disk/disk_remove_$(date +%Y%m%d_%H%M).log" # Log individual por execução
+LVM_LOG_FILE="/var/log/remove_disk/lvm_$(date +%Y%m%d_%H%M).log" # Log específico para operações LVM
 
 # --- Funções ---
 
