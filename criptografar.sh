@@ -1,5 +1,5 @@
 #!/bin/bash
-# teste
+
 echo "Escolha o tipo de entrada:"
 echo "1 - Frase"
 echo "2 - Arquivo"
