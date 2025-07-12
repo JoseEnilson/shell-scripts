@@ -37,7 +37,7 @@ mkdir -p /var/log/add_disk
 readonly LOG_DIR="/var/log/add_disk"
 readonly LVM_LOG_FILE="${LOG_DIR}/lvm.log"
 # Adiciona segundos para logs únicos, garantindo que cada execução crie um novo arquivo
-readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M%S).log"
+readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M).log"
 readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 
 # --- Funções de Validação e Mensagens ---
