@@ -31,8 +31,8 @@ NC='\033[0m' # No Color
 mkdir -p /var/log/resize_disk/
 
 # --- Variáveis Globais ---
-LOG_FILE="/var/log/resize_disk/disk_resize_$(date +%Y%m%d_%H%M%S).log" # Log individual por execução
-LVM_LOG_FILE="/var/log/resize_disk/lvm_operations.log" # Log específico para operações LVM
+LOG_FILE="/var/log/resize_disk/disk_resize_$(date +%Y%m%d_%H%M).log" # Log individual por execução
+LVM_LOG_FILE="/var/log/resize_disk/lvm_$(date +%Y%m%d_%H%M).log" # Log específico para operações LVM
 
 # --- Funções Auxiliares ---
 
