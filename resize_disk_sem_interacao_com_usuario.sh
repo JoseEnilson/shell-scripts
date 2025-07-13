@@ -32,7 +32,7 @@ mkdir -p /var/log/resize_disk/
 
 # --- Variáveis Globais ---
 LOG_FILE="/var/log/resize_disk/disk_resize_$(date +%Y%m%d_%H%M).log" # Log individual por execução
-LVM_LOG_FILE="${LOG_FILE}/lvm_$(date +%Y%m%d_%H%M).log" # Log específico para operações LVM
+LVM_LOG_FILE="/var/log/resize_disk/lvm_$(date +%Y%m%d_%H%M).log" # Log específico para operações LVM
 
 # --- Funções Auxiliares ---
 
@@ -57,8 +57,6 @@ registrar_logs() {
     lsblk | tee -a "$log_output"
     echo -e "\n--- DF -HT ---\n" | tee -a "$log_output"
     df -hT | tee -a "$log_output"
-    echo -e "\n--- FSTAB ---\n" | tee -a "$log_output"
-    cat /etc/fstab | tee -a "$log_output"
     echo -e "\n-------------------------------------------------\n" | tee -a "$log_output"
 }
 
@@ -114,11 +112,15 @@ perform_resize() {
     if [[ $? -ne 0 ]]; then
         erro "Falha ao redimensionar a partição ${partition_name_input} com growpart. Verifique se o disco foi estendido no hypervisor e se a partição é a última."
     fi
-    echo "Partição redimensionada com sucesso." | tee -a "$LOG_FILE"
+
+    sleep 2
+    echo -e "${GREEN}Partição redimensionada com sucesso.${NC}\n" | tee -a "$LOG_FILE"
 
     echo "Redimensionando Volume Físico (PV) LVM: $partition_path..." | tee -a "$LOG_FILE"
     pvresize "$partition_path" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao redimensionar o Volume Físico (PV) $partition_path."
-    echo "Volume Físico (PV) redimensionado com sucesso." | tee -a "$LOG_FILE"
+
+    sleep 2
+    echo -e "${GREEN}Volume Físico (PV) redimensionado com sucesso.${NC}\n" | tee -a "$LOG_FILE"
 
     # Obter VG e LV a partir do PV
     vg_name=$(pvs -o vg_name --noheadings "$partition_path" 2>/dev/null | tr -d ' ')
@@ -139,11 +141,13 @@ perform_resize() {
     if [[ $? -ne 0 && $? -ne 5 ]]; then # Verifica se é um erro diferente de "nenhum espaço livre"
         erro "Falha ao estender o Volume Lógico (LV) '$lv_mapper_path'."
     fi
-    echo "Volume Lógico (LV) estendido com sucesso." | tee -a "$LOG_FILE"
+
+    sleep 2
+    echo -e "${GREEN}Volume Lógico (LV) estendido com sucesso.${NC}\n" | tee -a "$LOG_FILE"
 
     echo "Redimensionando sistema de arquivos em '$lv_mapper_path'..." | tee -a "$LOG_FILE"
     resize2fs "$lv_mapper_path" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao redimensionar o sistema de arquivos em '$lv_mapper_path'."
- 
+
     sucesso # Exibe a mensagem de sucesso
     registrar_logs "$LOG_FILE" # Coleta e exibe os logs no final da operação
 }
