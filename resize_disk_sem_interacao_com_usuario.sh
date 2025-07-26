@@ -11,7 +11,7 @@
 # e que a partição LVM seja a última ou única partição no disco.
 #
 # Exemplo de execução (executar como root):
-#       # sudo ./resize_disk.sh
+#       # sudo ./resize_disk_sem_interacao_com_usuario.sh
 #
 # -----------------PACKAGE REQUIRED ----------------------------------------#
 # - cloud-utils-growpart (ou outro pacote que forneça 'growpart')

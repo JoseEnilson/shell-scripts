@@ -9,7 +9,7 @@
 # Este programa remove um disco que tenha volumes LVM associados.
 #
 # Exemplo de execução (executar como root):
-#       # sudo ./remove_disk.sh
+#       #  ./remove_disk.sh
 #
 # ------------------------------------------------------------------------ #
 

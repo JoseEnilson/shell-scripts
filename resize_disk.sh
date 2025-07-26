@@ -11,7 +11,7 @@
 # e que a partição LVM seja a última ou única partição no disco.
 #
 # Exemplo de execução (executar como root):
-#       # sudo ./resize_disk.sh
+#       # ./resize_disk.sh
 #
 # -----------------PACKAGE REQUIRED ----------------------------------------#
 # - cloud-utils-growpart (ou outro pacote que forneça 'growpart')
@@ -171,7 +171,7 @@ echo -e "\n${YELLOW}Lista de discos e partições disponíveis:${NC}\n"
 lsblk | tee -a "$LOG_FILE" # Exibe e loga o estado inicial dos discos
 echo " "
 # Solicita a partição no novo formato
-read -rp "INFORME O NOME DA PARTIÇÃO LVM QUE SERÁ REDIMENSIONADA [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
+read -rp "INFORME O NOME DA PARTIÇÃO QUE SERÁ REDIMENSIONADA [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
 
 # Validação da entrada da partição
 if [[ -z "$PARTITION_NAME_INPUT" ]]; then

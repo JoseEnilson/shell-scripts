@@ -15,7 +15,7 @@
 #   - e2fsprogs (para mkfs.ext4)
 #
 # Exemplo de execução (executar como root):
-#   # sudo ./add_disk_available.sh
+#   #  ./add_disk_limpo_ao_sistema.sh
 # ------------------------------------------------------------------------ #
 
 # --- Configurações Iniciais e Variáveis Globais ---
