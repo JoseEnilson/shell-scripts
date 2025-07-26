@@ -378,4 +378,3 @@ main() {
 
 # Inicia a execução do script
 main
-
