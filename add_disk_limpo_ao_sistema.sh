@@ -40,11 +40,11 @@ readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M).log"
 readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 
 # Recebe três argumentos pela linha de comando
-#vg_name="$1" # Nome do volume group
-#lv_name="$2" # Nome do Logical Volume
+#VG_NAME="$1" # Nome do volume group
+#LV_NAME="$2" # Nome do Logical Volume
 #mount_point="$3" # Ponto de montagem com o / ( Ex: /teste)
 # Obs.: para que o script receba as informações acima como argumento pela linha de comando,
-# deve-se descomentar as linhas: vg_name, lv_name e mount_point. Depois será necessário comentar as linhas 261,278 e 307.
+# deve-se descomentar as linhas: VG_NAME, LV_NAME e MOUNT_POINT. Depois será necessário comentar as linhas 261,278 e 307.
 
 # --- Funções de Validação e Mensagens ---
 
@@ -258,40 +258,42 @@ function add_disk_to_lvm() {
     fi
 
     # Input do nome do Volume Group
-    read -p "INFORME O NOME DO VOLUME GROUP (ex: vg_DADOS): " vg_name
-    echo "DEBUG: Nome do VG informado: $vg_name" >> "$LVM_LOG_FILE"
-    if [[ -z "$vg_name" || "$vg_name" != vg_* ]]; then
+    echo " " 
+    read -p "INFORME O NOME DO VOLUME GROUP COMEÇANDO COM \"vg_\" (ex: vg_DADOS): " VG_NAME
+    echo "DEBUG: Nome do VG informado: $VG_NAME" >> "$LVM_LOG_FILE"
+    if [[ -z "$VG_NAME" || "$VG_NAME" != vg_* ]]; then
         error_exit "Nome do Volume Group inválido. Use o formato 'vg_NOME'."
     fi
 
     # Cria Volume Group (VG)
-    echo -e "${C_BLUE}Criando Volume Group ${vg_name}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+    echo -e "${C_BLUE}Criando Volume Group ${VG_NAME}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
     # Adicionado o '-y' para aceitar automaticamente a limpeza de assinaturas existentes
-    vgcreate -y "$vg_name" "$partition_path" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
+    vgcreate -y "$VG_NAME" "$partition_path" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local vgcreate_status="${PIPESTATUS[0]}"
     echo "DEBUG: vgcreate status: $vgcreate_status" >> "$LVM_LOG_FILE"
     if [ "$vgcreate_status" -ne 0 ]; then
-        error_exit "Falha ao criar Volume Group ${vg_name}. Pode ser que já exista um VG com este nome."
+        error_exit "Falha ao criar Volume Group ${VG_NAME}. Pode ser que já exista um VG com este nome."
     fi
 
     # Input do nome do Logical Volume
-    read -p "INFORME O NOME DO LOGICAL VOLUME (ex: lv_DADOS): " lv_name
-    echo "DEBUG: Nome do LV informado: $lv_name" >> "$LVM_LOG_FILE"
-    if [[ -z "$lv_name" || "$lv_name" != lv_* ]]; then
+    echo " " 
+    read -p "INFORME O NOME DO LOGICAL VOLUME COMEÇANDO COM \"lv_\" (ex: lv_DADOS): " LV_NAME
+    echo "DEBUG: Nome do LV informado: $LV_NAME" >> "$LVM_LOG_FILE"
+    if [[ -z "$LV_NAME" || "$LV_NAME" != lv_* ]]; then
         error_exit "Nome do Logical Volume inválido. Use o formato 'lv_NOME'."
     fi
 
     # Cria Logical Volume (LV) usando todo o espaço livre do VG
-    echo -e "${C_BLUE}Criando Logical Volume ${lv_name} em ${vg_name}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+    echo -e "${C_BLUE}Criando Logical Volume ${LV_NAME} em ${VG_NAME}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
     # Adicionado o '-y' para aceitar automaticamente a limpeza de assinaturas existentes
-    lvcreate -l 100%FREE -n "$lv_name" "$vg_name" -y >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
+    lvcreate -l 100%FREE -n "$LV_NAME" "$VG_NAME" -y >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local lvcreate_status="${PIPESTATUS[0]}"
     echo "DEBUG: lvcreate status: $lvcreate_status" >> "$LVM_LOG_FILE"
     if [ "$lvcreate_status" -ne 0 ]; then
-        error_exit "Falha ao criar Logical Volume ${lv_name}. Pode ser que já exista um LV com este nome ou espaço insuficiente."
+        error_exit "Falha ao criar Logical Volume ${LV_NAME}. Pode ser que já exista um LV com este nome ou espaço insuficiente."
     fi
 
-    local lv_path="/dev/${vg_name}/${lv_name}"
+    local lv_path="/dev/${VG_NAME}/${LV_NAME}"
     echo "DEBUG: Caminho do LV: $lv_path" >> "$LVM_LOG_FILE"
 
     # Formata o Logical Volume com ext4
@@ -304,32 +306,33 @@ function add_disk_to_lvm() {
     fi
 
     # Input do ponto de montagem
-    read -p "INFORME UM PONTO DE MONTAGEM (ex: /dados). Será criado se não existir: " mount_point
-    echo "DEBUG: Ponto de montagem informado: $mount_point" >> "$LVM_LOG_FILE"
-    if [ -z "$mount_point" ]; then
+    echo " " 
+    read -p "INFORME UM PONTO DE MONTAGEM COMEÇANDO COM \"/\" (ex: /dados). Será criado o diretório se não existir: " MOUNT_POINT
+    echo "DEBUG: Ponto de montagem informado: $MOUNT_POINT" >> "$LVM_LOG_FILE"
+    if [ -z "$MOUNT_POINT" ]; then
         error_exit "Ponto de montagem não pode ser vazio."
     fi
-    if [[ "$mount_point" != /* ]]; then
+    if [[ "$MOUNT_POINT" != /* ]]; then
         error_exit "Ponto de montagem inválido. Deve começar com '/'. Ex: /dados."
     fi
 
     # Cria o ponto de montagem e monta o LV
-    echo -e "${C_BLUE}Criando ponto de montagem ${mount_point} e montando o LV...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
-    mkdir -p "$mount_point" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
-    mount "$lv_path" "$mount_point" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
+    echo -e "${C_BLUE}Criando ponto de montagem ${MOUNT_POINT} e montando o LV...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+    mkdir -p "$MOUNT_POINT" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
+    mount "$lv_path" "$MOUNT_POINT" >> "$LVM_LOG_FILE" 2>&1 # Saída apenas para log
     local mount_status="${PIPESTATUS[0]}"
     echo "DEBUG: mount status: $mount_status" >> "$LVM_LOG_FILE"
     if [ "$mount_status" -ne 0 ]; then
-        error_exit "Falha ao montar ${lv_path} em ${mount_point}."
+        error_exit "Falha ao montar ${lv_path} em ${MOUNT_POINT}."
     fi
 
     # Adiciona ao fstab para montagem persistente
     echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
     
     # # Usando diretamente o caminho do LV para maior robustez
-    # echo "$lv_path $mount_point ext4 defaults 1 2" >> /etc/fstab
+    # echo "$lv_path $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
     local persisttab=$(echo "$lv_path" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
-    echo "$persisttab $mount_point ext4 defaults 1 2" >> /etc/fstab
+    echo "$persisttab $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
     
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
