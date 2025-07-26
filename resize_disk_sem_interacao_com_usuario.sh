@@ -216,7 +216,7 @@ PARTITION_NAME_INPUT="$(find_inconsistent_partition)"
 
 # Validação da entrada da partição
 if [[ -z "$PARTITION_NAME_INPUT" ]]; then
-    erro "Nenhuma partição foi informada. Encerrando."
+    erro "Nenhum disco tem espaço livre para ser configurado. Encerrando."
 fi
 
 # Constrói o caminho completo da partição para validação
