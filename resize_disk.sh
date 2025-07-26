@@ -195,4 +195,3 @@ fi
 
 # Chama a função principal de redimensionamento
 perform_resize "$PARTITION_NAME_INPUT"
-
