@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# add_disk_available.sh - Adicionar um disco ao sistema
+# add_disk_limpo_ao_sistema.sh - Adicionar um disco ao sistema
 #
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
