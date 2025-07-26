@@ -39,7 +39,7 @@ readonly LVM_LOG_FILE="${LOG_DIR}/lvm.log"
 readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M).log"
 readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 
-# Recebe três argumentos na linha de comando
+# Recebe três argumentos pela linha de comando
 #vg_name="$1" # Nome do volume group
 #lv_name="$2" # Nome do Logical Volume
 #mount_point="$3" # Ponto de montagem com o / ( Ex: /teste)
