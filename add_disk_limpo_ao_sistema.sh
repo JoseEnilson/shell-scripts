@@ -307,7 +307,10 @@ function add_disk_to_lvm() {
 
     # Input do ponto de montagem
     echo " " 
-    read -p "INFORME UM PONTO DE MONTAGEM COMEÇANDO COM \"/\" (ex: /dados). Será criado o diretório se não existir: " MOUNT_POINT
+    
+    read -p "INFORME UM PONTO DE MONTAGEM COMEÇANDO COM \"/\" (ex: /dados). Será criado o diretório se não existir: " pontoMontagem
+    MOUNT_POINT=$(normaliza_ponto_montagem "${pontoMontagem}")
+    
     echo "DEBUG: Ponto de montagem informado: $MOUNT_POINT" >> "$LVM_LOG_FILE"
     if [ -z "$MOUNT_POINT" ]; then
         error_exit "Ponto de montagem não pode ser vazio."
@@ -341,6 +344,20 @@ function add_disk_to_lvm() {
     fi
 
     echo -e "\n${C_GREEN}Disco configurado e montado com sucesso!${C_RESET}\n" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+}
+
+# Retorna: O ponto de montagem padronizado na saída padrão (stdout).
+normaliza_ponto_montagem() {
+    local entrada_usuario="$1" # 'local' para manter a variável no escopo da função
+
+    # Verifica se a string JÁ COMEÇA com uma barra
+    if [[ ! "${entrada_usuario}" =~ ^/ ]]; then
+        # Se não começar com barra, adicionamos uma.
+        echo "/${entrada_usuario}" # A função AGORA apenas imprime o VALOR
+    else
+        # Se já começar com barra, usamos como está.
+        echo "${entrada_usuario}" # A função AGORA apenas imprime o VALOR
+    fi
 }
 
 # --- Execução Principal ---
