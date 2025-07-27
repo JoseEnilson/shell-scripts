@@ -9,7 +9,7 @@
 # Este programa remove um disco que tenha volumes LVM associados.
 #
 # Exemplo de execução (executar como root):
-#       #  ./remove_disk.sh
+#       # sudo ./remove_disk.sh
 #
 # ------------------------------------------------------------------------ #
 
@@ -94,7 +94,7 @@ remover_disco() {
     echo "Removendo entrada de ${lv_mapper_path} do /etc/fstab..." | tee -a "$LOG_FILE"
     local path_fstab=$(echo "/dev/mapper/${vg}-${lv}")
     sed -i.bak "\|^$path_fstab|d" /etc/fstab >> "$LOG_FILE" 2>&1
-    
+
     if [[ $? -ne 0 ]]; then
         echo "${YELLOW}Aviso: Não foi possível remover a entrada de ${lv_mapper_path} do /etc/fstab automaticamente. Verifique manualmente.${NC}" | tee -a "$LOG_FILE"
     else
