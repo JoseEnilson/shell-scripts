@@ -28,12 +28,12 @@ readonly C_YELLOW='\033[1;33m'
 readonly C_BLUE='\033[1;34m'
 readonly C_RESET='\033[0m'
 
-# Diretório para os arquivos de logs.
+# Diretório para os arquivos de logs
 mkdir -p /var/log/add_disk
 
 # Variáveis do script
 readonly LOG_DIR="/var/log/add_disk"
-readonly LVM_LOG_FILE="${LOG_DIR}/lvm.log"
+readonly LVM_LOG_FILE="${LOG_DIR}/lvm$(date +%Y%m%d_%H%M).log"
 
 # Adiciona segundos para logs únicos, garantindo que cada execução crie um novo arquivo
 readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M).log"
@@ -42,9 +42,10 @@ readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 # Recebe três argumentos pela linha de comando
 #VG_NAME="$1" # Nome do volume group
 #LV_NAME="$2" # Nome do Logical Volume
-#mount_point="$3" # Ponto de montagem com o / ( Ex: /teste)
-# Obs.: para que o script receba as informações acima como argumento pela linha de comando,
-# deve-se descomentar as linhas: VG_NAME, LV_NAME e MOUNT_POINT. Depois será necessário comentar as linhas 261,278 e 307.
+#pontoMontagem="$3" # Ponto de montagem com o / ( Ex: /teste)
+
+# IMPORTANTE: para que o script receba as informações acima como argumento pela linha de comando,
+# deve-se descomentar as variáveis: VG_NAME, LV_NAME e pontoMontagem. Depois será necessário comentar as linhas 321,339 e 370.
 
 # --- Funções de Validação e Mensagens ---
 
@@ -57,42 +58,94 @@ function error_exit() {
 }
 
 function success_message() {
-    # Mensagens de sucesso vão para a tela e para o log
-    echo -e "--- ${C_YELLOW}DF -HT${C_RESET} ---\n" | tee -a "$DISK_LOG_FILE"
+    local TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S") # Timestamp para o log
+
+    # Adiciona um cabeçalho para a seção de sucesso no log (sem cores para o arquivo)
+    echo -e "\n==========================================================================" >> "$DISK_LOG_FILE"
+    echo -e "=== RESUMO PÓS-SUCESSO - ${TIMESTAMP} ===" >> "$DISK_LOG_FILE"
+    echo -e "==========================================================================\n" >> "$DISK_LOG_FILE"
+
+    # Saída do df -hT
+    echo -e "${C_YELLOW}--- DF -hT (Uso de Espaço em Disco) ---${C_RESET}\n" | tee -a "$DISK_LOG_FILE"
     df -hT | tee -a "$DISK_LOG_FILE"
-    echo -e "\n--- ${C_YELLOW}FSTAB${C_RESET} ---\n" | tee -a "$DISK_LOG_FILE"
-    cat /etc/fstab | tee -a "$DISK_LOG_FILE"
-    echo -e "\n--- ${C_YELLOW}LSBLK${C_RESET} ---\n" | tee -a "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" | tee -a "$DISK_LOG_FILE" # Delimitador para tela e log
+
+    # Saída do cat /etc/fstab
+    echo -e "${C_YELLOW}--- FSTAB (Entradas de Montagem Persistente) ---${C_RESET}\n" | tee -a "$DISK_LOG_FILE"
+    # Adiciona marcadores no log para novas entradas, útil para verificar se tudo foi gravado
+    (
+        echo "## INÍCIO DAS ENTRADAS ATUAIS DE FSTAB ##"
+        cat /etc/fstab
+        echo "## FIM DAS ENTRADAS ATUAIS DE FSTAB ##"
+    ) | tee -a "$DISK_LOG_FILE" # Redireciona tudo para tela e log
+    echo -e "\n--------------------------------------------------------------------------\n" | tee -a "$DISK_LOG_FILE"
+
+    # Saída do lsblk
+    echo -e "${C_YELLOW}--- LSBLK (Estrutura de Blocos) ---${C_RESET}\n" | tee -a "$DISK_LOG_FILE"
     lsblk | tee -a "$DISK_LOG_FILE"
-    echo -e "\n" | tee -a "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" | tee -a "$DISK_LOG_FILE"
+
+    # Final do resumo no log
+    echo -e "\n==========================================================================" >> "$DISK_LOG_FILE"
+    echo -e "=== FIM DO RESUMO PÓS-SUCESSO - ${TIMESTAMP} ===" >> "$DISK_LOG_FILE"
+    echo -e "==========================================================================\n" >> "$DISK_LOG_FILE"
 }
 
 function record_logs() {
     mkdir -p "$LOG_DIR" # Garante que o diretório de log exista
-    echo -e "\n[ $(date) ] -- INÍCIO DA COLETA DE LOGS --" >> "$DISK_LOG_FILE"
-    echo -e "\n--- LSBLK ---\n" >> "$DISK_LOG_FILE"
-    lsblk >> "$DISK_LOG_FILE" 2>&1 # Redireciona stdout e stderr para o log
-    echo -e "\n-----------------------------------------------\n" >> "$DISK_LOG_FILE"
-    echo -e "--- DF -HT ---\n" >> "$DISK_LOG_FILE"
-    df -hT >> "$DISK_LOG_FILE" 2>&1 # Redireciona stdout e stderr para o log
-    echo -e "\n-----------------------------------------------\n" >> "$DISK_LOG_FILE"
-    echo -e "--- FSTAB ---\n" >> "$DISK_LOG_FILE"
-    cat /etc/fstab >> "$DISK_LOG_FILE" 2>&1 # Redireciona stdout e stderr para o log
-    echo -e "\n-----------------------------------------------\n" >> "$DISK_LOG_FILE"
-    echo -e "--- PVS (Physical Volumes) ---\n" >> "$DISK_LOG_FILE"
-    # Redireciona stderr de 'pvs' para /dev/null (na tela) e para o LVM_LOG_FILE, stdout para DISK_LOG_FILE
-    pvs -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,free,dev_size --units h 2>/dev/null >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum PV encontrado ou erro ao executar pvs." >> "$DISK_LOG_FILE"
-    echo -e "\n-----------------------------------------------\n" >> "$DISK_LOG_FILE"
-    echo -e "--- VGS (Volume Groups) ---\n" >> "$DISK_LOG_FILE"
-    # Redireciona stderr de 'vgs' para /dev/null (na tela) e para o LVM_LOG_FILE, stdout para DISK_LOG_FILE
-    vgs -o vg_name,pv_count,lv_count,vg_size,free,vg_attr --units h 2>/dev/null >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum VG encontrado ou erro ao executar vgs." >> "$DISK_LOG_FILE"
-    echo -e "\n-----------------------------------------------\n" >> "$DISK_LOG_FILE"
-    echo -e "--- LVS (Logical Volumes) ---\n" >> "$DISK_LOG_FILE"
-    # Redireciona stderr de 'lvs' para /dev/null (na tela) e para o LVM_LOG_FILE, stdout para DISK_LOG_FILE
-    lvs -o lv_name,vg_name,lv_size,lv_attr 2>/dev/null >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum LV encontrado ou erro ao executar lvs." >> "$DISK_LOG_FILE"
-    echo -e "\n***********************************************" >> "$DISK_LOG_FILE"
-    echo -e "|=============================================|" >> "$DISK_LOG_FILE"
-    echo -e "***********************************************\n" >> "$DISK_LOG_FILE"
+
+    local TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S") # Formato YYYY-MM-DD HH:MM:SS
+
+    echo -e "\n==========================================================================" >> "$DISK_LOG_FILE"
+    echo -e "=== INÍCIO DA COLETA DE LOGS ANTES DAS ALTERAÇÕES PARA TROUBLESHOOTING - ${TIMESTAMP} ===" >> "$DISK_LOG_FILE"
+    echo -e "==========================================================================\n" >> "$DISK_LOG_FILE"
+
+    # lsblk: Agora sem cores para o log, mostrando todos os dispositivos de bloco
+    echo -e "\n--- LSBLK (Estrutura de Blocos) ---\n" >> "$DISK_LOG_FILE"
+    lsblk -a >> "$DISK_LOG_FILE" 2>&1
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # DF -hT: Uso de Espaço em Disco
+    echo -e "\n--- DF -hT (Uso de Espaço em Disco) ---\n" >> "$DISK_LOG_FILE"
+    df -hT >> "$DISK_LOG_FILE" 2>&1
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # cat /etc/fstab: Entradas de Montagem Persistente
+    echo -e "\n--- CAT /ETC/FSTAB (Entradas de Montagem Persistente) ---\n" >> "$DISK_LOG_FILE"
+    # Adiciona um marcador visual para facilitar a identificação das entradas criadas pelo script
+    echo "## INÍCIO DAS ENTRADAS DE FSTAB (GERADAS/MODIFICADAS PELO SCRIPT) ##" >> "$DISK_LOG_FILE"
+    cat /etc/fstab >> "$DISK_LOG_FILE" 2>&1
+    echo "## FIM DAS ENTRADAS DE FSTAB (GERADAS/MODIFICADAS PELO SCRIPT) ##" >> "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # PVS: Volumes Físicos LVM
+    echo -e "\n--- PVS (Volumes Físicos LVM) ---\n" >> "$DISK_LOG_FILE"
+    # Redireciona stderr de 'pvs' para /dev/null (na tela) E para o LVM_LOG_FILE, stdout para DISK_LOG_FILE
+    # O '|| echo ...' serve para registrar no DISK_LOG_FILE se o comando falhar ou não encontrar nada.
+    pvs -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,free,dev_size --units h >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum PV encontrado ou erro ao executar pvs." >> "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # VGS: Grupos de Volumes LVM
+    echo -e "\n--- VGS (Grupos de Volumes LVM) ---\n" >> "$DISK_LOG_FILE"
+    vgs -o vg_name,pv_count,lv_count,vg_size,free,vg_attr --units h >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum VG encontrado ou erro ao executar vgs." >> "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # LVS: Volumes Lógicos LVM
+    echo -e "\n--- LVS (Volumes Lógicos LVM) ---\n" >> "$DISK_LOG_FILE"
+    lvs -o lv_name,vg_name,lv_size,lv_attr >> "$DISK_LOG_FILE" 2>>"$LVM_LOG_FILE" || echo "Nenhum LV encontrado ou erro ao executar lvs." >> "$DISK_LOG_FILE"
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # blkid: Identificadores de Dispositivos de Bloco
+    echo -e "\n--- BLKID (Identificadores de Dispositivos de Bloco) ---\n" >> "$DISK_LOG_FILE"
+    blkid >> "$DISK_LOG_FILE" 2>&1
+    echo -e "\n--------------------------------------------------------------------------\n" >> "$DISK_LOG_FILE"
+
+    # mount: Pontos de Montagem Atuais
+    echo -e "\n--- MOUNT (Pontos de Montagem Atuais) ---\n" >> "$DISK_LOG_FILE"
+    mount >> "$DISK_LOG_FILE" 2>&1
+    echo -e "\n==========================================================================" >> "$DISK_LOG_FILE"
+    echo -e "=== FIM DA COLETA DE LOGS ANTES DAS ALTERAÇÕES PARA TROUBLESHOOTING - ${TIMESTAMP} ===" >> "$DISK_LOG_FILE"
+    echo -e "==========================================================================\n" >> "$DISK_LOG_FILE"
 }
 
 # --- Funções de Hardware e LVM ---
@@ -161,9 +214,12 @@ function partition_instructions() {
     
     echo "DEBUG: Executando partition_instructions para $disk_path" >> "$DISK_LOG_FILE"
 
-    echo -e "\n${C_YELLOW}ATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE: ${disk_path}${C_RESET}" | tee -a "$DISK_LOG_FILE"
-    echo -e "${C_YELLOW}Todas as informações em ${disk_path} serão perdidas.${C_RESET}" | tee -a "$DISK_LOG_FILE"
-    echo -e "${C_YELLOW}Será criada uma única partição primária, tipo 'Linux LVM (8e)', ocupando todo o disco.${C_RESET}" | tee -a "$DISK_LOG_FILE"
+    echo -e "\nATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE: ${disk_path}" > "$DISK_LOG_FILE"
+    echo -e "\n${C_YELLOW}ATENÇÃO: PARTICIONANDO O DISCO AUTOMATICAMENTE: ${disk_path}${C_RESET}" 
+    #echo -e "${C_YELLOW}Todas as informações em ${disk_path} serão perdidas.${C_RESET}" | tee -a "$DISK_LOG_FILE"
+    echo -e "${C_YELLOW}Todas as informações em ${disk_path} serão perdidas.${C_RESET}"
+    #echo -e "${C_YELLOW}Será criada uma única partição primária, tipo 'Linux LVM (8e)', ocupando todo o disco.${C_RESET}" | tee -a "$DISK_LOG_FILE"
+    echo -e "${C_YELLOW}Será criada uma única partição primária, tipo 'Linux LVM (8e)', ocupando todo o disco.${C_RESET}" 
 
     echo "DEBUG: Limpando assinaturas existentes em $disk_path" >> "$DISK_LOG_FILE"
     # Redireciona stdout e stderr para /dev/null, e erros para o log
@@ -198,7 +254,7 @@ function partition_instructions() {
     echo "DEBUG: Aguardando 5 segundos para o kernel reconhecer a nova partição." >> "$DISK_LOG_FILE"
     sleep 5 # Dá um tempo para o kernel reconhecer a nova partição
 
-    echo "DEBUG: lsblk após fdisk e partprobe:" >> "$DISK_LOG_FILE"
+    echo -e "DEBUG: lsblk após fdisk e partprobe:\n" >> "$DISK_LOG_FILE"
     lsblk "$disk_path" >> "$DISK_LOG_FILE" 2>&1 # Loga o estado do disco após particionamento
     
     # Esta função NÃO DEVE ECHOAR nada para stdout para não poluir o retorno de select_disk.
@@ -224,8 +280,11 @@ function select_disk() {
     first_clean_disk=$(echo "$clean_disks" | awk '{print $1}')
     
     # As mensagens informativas agora são enviadas para stderr (>&2)
-    echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
-    echo -e "${C_YELLOW}AGUARDE A CONFIGURAÇÃO LVM TERMINAR ...................${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2   
+    #echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
+    echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" >&2
+    echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" > "$DISK_LOG_FILE"
+    #echo -e "${C_YELLOW}AGUARDE A CONFIGURAÇÃO LVM TERMINAR ...................${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
+    echo -e "${C_YELLOW}AGUARDE!!! INFORME OS DADOS SOMENTE QUANDO SOLICITADO...................${C_RESET}\n" >&2   
     lsblk "/dev/${first_clean_disk}" | tee -a "$DISK_LOG_FILE" >&2 # Exibe e loga informações do disco selecionado, também para stderr
 
     # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
