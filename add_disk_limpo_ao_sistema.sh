@@ -42,10 +42,10 @@ readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 # Recebe três argumentos pela linha de comando
 #VG_NAME="$1" # Nome do volume group
 #LV_NAME="$2" # Nome do Logical Volume
-#pontoMontagem="$3" # Ponto de montagem com o / ( Ex: /teste)
+#PONTO_MONTAGEM="$3" # Ponto de montagem com o / ( Ex: /teste)
 
 # IMPORTANTE: para que o script receba as informações acima como argumento pela linha de comando,
-# deve-se descomentar as variáveis: VG_NAME, LV_NAME e pontoMontagem. Depois será necessário comentar as linhas 321,339 e 370.
+# deve-se descomentar as variáveis: VG_NAME, LV_NAME e PONTO_MONTAGEM. Depois será necessário comentar as linhas 321,339 e 370.
 
 # --- Funções de Validação e Mensagens ---
 
@@ -367,8 +367,8 @@ function add_disk_to_lvm() {
     # Input do ponto de montagem
     echo " " 
     
-    read -p "INFORME UM PONTO DE MONTAGEM COMEÇANDO COM \"/\" (ex: /dados). Será criado o diretório se não existir: " pontoMontagem
-    MOUNT_POINT=$(normaliza_ponto_montagem "${pontoMontagem}")
+    read -p "INFORME UM PONTO DE MONTAGEM COMEÇANDO COM \"/\" (ex: /dados). Será criado o diretório se não existir: " PONTO_MONTAGEM
+    MOUNT_POINT=$(normaliza_ponto_montagem "${PONTO_MONTAGEM}")
     
     echo "DEBUG: Ponto de montagem informado: $MOUNT_POINT" >> "$LVM_LOG_FILE"
     if [ -z "$MOUNT_POINT" ]; then
