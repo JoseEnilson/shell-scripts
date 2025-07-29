@@ -15,7 +15,7 @@
 #   - e2fsprogs (para mkfs.ext4)
 #
 # Exemplo de execução (executar como root):
-#   #   ./add_disk_limpo_ao_sistema.sh
+#   #   ./add_disk_limpo_ao_sistema.sh 
 # ------------------------------------------------------------------------ #
 
 # --- Configurações Iniciais e Variáveis Globais ---
@@ -38,14 +38,6 @@ readonly LVM_LOG_FILE="${LOG_DIR}/lvm$(date +%Y%m%d_%H%M).log"
 # Adiciona segundos para logs únicos, garantindo que cada execução crie um novo arquivo
 readonly DISK_LOG_FILE="${LOG_DIR}/disk_$(date +%Y%m%d_%H%M).log"
 readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
-
-# Recebe três argumentos pela linha de comando
-#VG_NAME="$1" # Nome do volume group
-#LV_NAME="$2" # Nome do Logical Volume
-#PONTO_MONTAGEM="$3" # Ponto de montagem com o / ( Ex: /teste)
-
-# IMPORTANTE: para que o script receba as informações acima como argumento pela linha de comando,
-# deve-se descomentar as variáveis: VG_NAME, LV_NAME e PONTO_MONTAGEM. Depois será necessário comentar as linhas 321,339 e 370.
 
 # --- Funções de Validação e Mensagens ---
 
