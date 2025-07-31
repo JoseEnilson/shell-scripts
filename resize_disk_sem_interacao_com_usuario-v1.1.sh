@@ -160,7 +160,7 @@ function find_inconsistent_partition() {
 
     # Usa a saída de lsblk para iterar, incluindo MOUNTPOINT para o filtro
     # Adiciona grep -v "sda" para excluir o disco sda, conforme a lógica original
-    lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | while read kname type size mountpoint; do
+    lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | grep -v "sda" | while read kname type size mountpoint; do
 
         if [[ "$type" == "disk" ]]; then
             current_disk_name="$kname"
@@ -171,7 +171,7 @@ function find_inconsistent_partition() {
 
             # Verifica se a partição pertence ao disco atual
             if [[ "$kname" =~ ^"$current_disk_name"[0-9]+$ ]]; then
-
+                
                 # NOVO FILTRO:
                 # Se a partição é uma das 4 primeiras E tem um mount point excluído, ignora e continua
                 if [[ "$partition_number" -le 4 && ( "$mountpoint" == "/boot" || "$mountpoint" == "/" || "$mountpoint" == "[SWAP]" ) ]]; then
