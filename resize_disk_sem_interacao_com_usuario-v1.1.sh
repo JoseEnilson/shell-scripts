@@ -5,6 +5,8 @@
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
 #
+# IMPORTANTE: NÃO IMPRIMI INFORMAÇÃO NA TELA, VAI TUDO PARA ARQUIVOS DE LOGS
+#             NÃO CONFIGURA O /boot, o swap e o / (barra)
 # ------------------------------------------------------------------------ #
 # Este programa irá redimensionar um disco LVM existente.
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
@@ -21,43 +23,38 @@
 export LANG=C
 export LC_ALL=C
 
-# --- Cores para saída no terminal ---
-GREEN='\033[1;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
 # --- Diretório para os arquivos de log ---
 mkdir -p /var/log/resize_disk/
 
 # --- Variáveis Globais ---
 LOG_FILE="/var/log/resize_disk/disk_resize_$(date +%Y%m%d_%H%M).log" # Log individual por execução
-LVM_LOG_FILE="/var/log/resize_disk/lvm_$(date +%Y%m%d_%H%M).log" # Log específico para operações LVM
+LVM_LOG_FILE="/var/log/resize_disk/lvm_$(date +%Ym%d_%H%M).log" # Log específico para operações LVM
 
 # --- Funções Auxiliares ---
 
-# Função para exibir mensagem de sucesso
+# Função para exibir mensagem de sucesso (saída apenas para o log)
 sucesso() {
-    echo -e "\n${GREEN}***** CONFIGURAÇÃO EXECUTADA COM SUCESSO *****${NC}\n" | tee -a "$LOG_FILE"
+    echo -e "\n***** CONFIGURAÇÃO EXECUTADA COM SUCESSO *****\n" >> "$LOG_FILE"
 }
 
-# Função para exibir mensagens de erro e sair
+# Função para exibir mensagens de erro e sair (saída apenas para o log)
 erro() {
     local message="${1:-"Erro desconhecido"}"
-    echo -e "\n${RED}ERRO: $message${NC}" | tee -a "$LOG_FILE"
-    echo -e "${RED}CONSULTE OS ARQUIVOS DE LOGS: $LVM_LOG_FILE e/ou $LOG_FILE${NC}\n" | tee -a "$LOG_FILE"
+    # Redireciona a mensagem de erro para o log
+    echo -e "\nERRO: $message" >> "$LOG_FILE"
+    echo -e "CONSULTE OS ARQUIVOS DE LOGS: $LVM_LOG_FILE e/ou $LOG_FILE\n" >> "$LOG_FILE"
     exit 1
 }
 
-# Função para registrar informações detalhadas nos logs E na tela
+# Função para registrar informações detalhadas nos logs (saída apenas para o log)
 registrar_logs() {
     local log_output="$1"
-    echo -e "\n--- [ $(date) ] ---" | tee -a "$log_output"
-    echo -e "\n--- LSBLK ---\n" | tee -a "$log_output"
-    lsblk | tee -a "$log_output"
-    echo -e "\n--- DF -HT ---\n" | tee -a "$log_output"
-    df -hT | tee -a "$log_output"
-    echo -e "\n-------------------------------------------------\n" | tee -a "$log_output"
+    echo -e "\n--- [ $(date) ] ---" >> "$log_output"
+    echo -e "\n--- LSBLK ---\n" >> "$log_output"
+    lsblk >> "$log_output"
+    echo -e "\n--- DF -HT ---\n" >> "$log_output"
+    df -hT >> "$log_output"
+    echo -e "\n-------------------------------------------------\n" >> "$log_output"
 }
 
 # Função para verificar a existência de pacotes
@@ -70,36 +67,33 @@ check_package() {
 
 # Função para realizar o rescan dos discos SCSI (saída apenas para o log)
 rescan_disks() {
-    echo "Realizando rescan dos discos SCSI..." | tee -a "$LOG_FILE" # Mensagem principal para o terminal e log
+    echo "Realizando rescan dos discos SCSI..." >> "$LOG_FILE"
     local scsidev_list
     scsidev_list=$(ls /sys/class/scsi_device/ 2>/dev/null)
 
     if [[ -z "$scsidev_list" ]]; then
-        echo "${YELLOW}Aviso: Nenhum dispositivo SCSI encontrado para rescan.${NC}" | tee -a "$LOG_FILE"
+        echo "Aviso: Nenhum dispositivo SCSI encontrado para rescan." >> "$LOG_FILE"
         return 0
     fi
 
     for dev in $scsidev_list; do
-        # Mensagem de rescan individual apenas para o log
         echo "   Rescan em /sys/class/scsi_device/$dev/device/rescan..." >> "$LOG_FILE"
         echo "1" > "/sys/class/scsi_device/$dev/device/rescan" 2>/dev/null || \
-        echo "${YELLOW}Aviso: Falha ao rescanear $dev. Pode ser necessário um reboot ou rescan manual.${NC}" | tee -a "$LOG_FILE"
+        echo "Aviso: Falha ao rescanear $dev. Pode ser necessário um reboot ou rescan manual." >> "$LOG_FILE"
     done
-    echo "Rescan de discos concluído." | tee -a "$LOG_FILE"
+    echo "Rescan de discos concluído." >> "$LOG_FILE"
 }
 
 # Função principal de redimensionamento LVM
 perform_resize() {
-    local partition_name_input="$1" # Ex: sdc1 (agora recebemos sem /dev/)
-    local partition_path="/dev/${partition_name_input}" # Construímos o caminho completo aqui
-    local parent_disk_name # Ex: sdc
-    local partition_number # Ex: 1
+    local partition_name_input="$1"
+    local partition_path="/dev/${partition_name_input}"
+    local parent_disk_name
+    local partition_number
     local vg_name
     local lv_name
-    local lv_mapper_path # Ex: /dev/mapper/vg_teste-lv_teste
+    local lv_mapper_path
 
-    # Extrai o nome do disco pai e o número da partição
-    # A regex agora precisa capturar o nome do disco e o número da partição da string "sdXN"
     parent_disk_name=$(echo "$partition_name_input" | grep -io "sd[a-z]\+" | head -n1)
     partition_number=$(echo "$partition_name_input" | grep -o "[0-9]\+$" | head -n1)
 
@@ -107,22 +101,21 @@ perform_resize() {
         erro "Não foi possível extrair o nome do disco pai ou número da partição de '$partition_name_input'. Formato esperado: sdXN (ex: sda1)."
     fi
 
-    echo "Redimensionando partição: ${partition_name_input} com growpart..." | tee -a "$LOG_FILE"
+    echo "Redimensionando partição: ${partition_name_input} com growpart..." >> "$LOG_FILE"
     growpart "/dev/$parent_disk_name" "$partition_number" >> "$LVM_LOG_FILE" 2>&1
     if [[ $? -ne 0 ]]; then
         erro "Falha ao redimensionar a partição ${partition_name_input} com growpart. Verifique se o disco foi estendido no hypervisor e se a partição é a última."
     fi
 
     sleep 2
-    echo -e "${GREEN}Partição redimensionada com sucesso.${NC}\n" | tee -a "$LOG_FILE"
+    echo -e "Partição redimensionada com sucesso.\n" >> "$LOG_FILE"
 
-    echo "Redimensionando Volume Físico (PV) LVM: $partition_path..." | tee -a "$LOG_FILE"
+    echo "Redimensionando Volume Físico (PV) LVM: $partition_path..." >> "$LOG_FILE"
     pvresize "$partition_path" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao redimensionar o Volume Físico (PV) $partition_path."
 
     sleep 2
-    echo -e "${GREEN}Volume Físico (PV) redimensionado com sucesso.${NC}\n" | tee -a "$LOG_FILE"
+    echo -e "Volume Físico (PV) redimensionado com sucesso.\n" >> "$LOG_FILE"
 
-    # Obter VG e LV a partir do PV
     vg_name=$(pvs -o vg_name --noheadings "$partition_path" 2>/dev/null | tr -d ' ')
     if [[ -z "$vg_name" ]]; then
         erro "Não foi possível encontrar o Grupo de Volumes (VG) associado a '$partition_path'."
@@ -135,21 +128,20 @@ perform_resize() {
 
     lv_mapper_path="/dev/mapper/${vg_name}-${lv_name}"
 
-    echo "Estendendo Volume Lógico (LV) '$lv_mapper_path' para usar 100% do espaço livre..." | tee -a "$LOG_FILE"
+    echo "Estendendo Volume Lógico (LV) '$lv_mapper_path' para usar 100% do espaço livre..." >> "$LOG_FILE"
     lvextend -l +100%free "$lv_mapper_path" >> "$LVM_LOG_FILE" 2>&1
-    # lvextend retorna 5 se já não há espaço livre, o que não é um erro fatal se o objetivo foi alcançado
-    if [[ $? -ne 0 && $? -ne 5 ]]; then # Verifica se é um erro diferente de "nenhum espaço livre"
+    if [[ $? -ne 0 && $? -ne 5 ]]; then
         erro "Falha ao estender o Volume Lógico (LV) '$lv_mapper_path'."
     fi
 
     sleep 2
-    echo -e "${GREEN}Volume Lógico (LV) estendido com sucesso.${NC}\n" | tee -a "$LOG_FILE"
+    echo -e "Volume Lógico (LV) estendido com sucesso.\n" >> "$LOG_FILE"
 
-    echo "Redimensionando sistema de arquivos em '$lv_mapper_path'..." | tee -a "$LOG_FILE"
+    echo "Redimensionando sistema de arquivos em '$lv_mapper_path'..." >> "$LOG_FILE"
     resize2fs "$lv_mapper_path" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao redimensionar o sistema de arquivos em '$lv_mapper_path'."
 
-    sucesso # Exibe a mensagem de sucesso
-    registrar_logs "$LOG_FILE" # Coleta e exibe os logs no final da operação
+    sucesso
+    registrar_logs "$LOG_FILE"
 }
 
 # --- Função para encontrar a primeira partição com tamanho diferente do disco ---
@@ -158,28 +150,20 @@ function find_inconsistent_partition() {
     local current_disk_name=""
     local current_disk_size=""
 
-    # Usa a saída de lsblk para iterar, incluindo MOUNTPOINT para o filtro
-    # Adiciona grep -v "sda" para excluir o disco sda, conforme a lógica original
     lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | grep -v "sda" | while read kname type size mountpoint; do
 
         if [[ "$type" == "disk" ]]; then
             current_disk_name="$kname"
             current_disk_size="$size"
         elif [[ "$type" == "part" ]]; then
-            # Extrai o número da partição (ex: 1 de sdb1)
             local partition_number=$(echo "$kname" | grep -o "[0-9]\+$")
 
-            # Verifica se a partição pertence ao disco atual
             if [[ "$kname" =~ ^"$current_disk_name"[0-9]+$ ]]; then
                 
-                # NOVO FILTRO:
-                # Se a partição é uma das 4 primeiras E tem um mount point excluído, ignora e continua
                 if [[ "$partition_number" -le 4 && ( "$mountpoint" == "/boot" || "$mountpoint" == "/" || "$mountpoint" == "[SWAP]" ) ]]; then
                     continue
                 fi
 
-                # Lógica original para encontrar a partição inconsistente
-                # (executada apenas se a partição não for filtrada acima)
                 if [[ "$current_disk_size" != "$size" ]]; then
                     partition_name_output="$kname"
                     echo "$partition_name_output"
@@ -193,49 +177,37 @@ function find_inconsistent_partition() {
 
 # ------------------------------- EXECUCAO ------------------------------- #
 
-# Verifica se o script está sendo executado como root
 if [[ "$EUID" -ne 0 ]]; then
     erro "Este script precisa ser executado como root. Use 'sudo ./resize_disk.sh'."
 fi
 
-# Verifica pacotes necessários
 check_package "growpart"
 
-echo -e "\n${YELLOW}Opção selecionada: Redimensionar um disco LVM${NC}\n" | tee "$LOG_FILE"
+echo -e "\nOpção selecionada: Redimensionar um disco LVM\n" >> "$LOG_FILE"
 
-# Realiza o rescan de discos em background. A saída detalhada vai para o log.
-echo -e "\n${YELLOW}Realizando rescan dos discos. Por favor, aguarde...${NC}\n" | tee -a "$LOG_FILE"
+echo -e "\nRealizando rescan dos discos. Por favor, aguarde...\n" >> "$LOG_FILE"
 rescan_disks &
-wait # Espera o rescan de discos terminar antes de continuar
+wait
 
-echo -e "\n${YELLOW}ATENÇÃO!!! -> CERTIFIQUE-SE DE QUE O DISCO FOI ESTENDIDO NO VMWARE!${NC}" | tee -a "$LOG_FILE"
-echo -e "\n${YELLOW}Lista de discos e partições disponíveis:${NC}\n"
-lsblk | tee -a "$LOG_FILE" # Exibe e loga o estado inicial dos discos
-echo " "
-# Solicita a partição no novo formato
-# read -rp "INFORME O NOME DA PARTIÇÃO LVM QUE SERÁ REDIMENSIONADA [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
+echo -e "\nATENÇÃO!!! -> CERTIFIQUE-SE DE QUE O DISCO FOI ESTENDIDO NO VMWARE!\n" >> "$LOG_FILE"
+echo -e "\nLista de discos e partições disponíveis:\n" >> "$LOG_FILE"
+lsblk >> "$LOG_FILE"
+echo " " >> "$LOG_FILE"
 
 PARTITION_NAME_INPUT="$(find_inconsistent_partition)"
 
-# Validação da entrada da partição
 if [[ -z "$PARTITION_NAME_INPUT" ]]; then
     erro "Nenhum disco elegível tem espaço livre para ser configurado. Encerrando."
 fi
 
-# Constrói o caminho completo da partição para validação
 FULL_PARTITION_PATH="/dev/${PARTITION_NAME_INPUT}"
 
-# --- Nova lógica de validação ---
-# Verifica se a partição existe como um dispositivo de bloco E se é um PV LVM
 if ! lsblk -n "$FULL_PARTITION_PATH" &>/dev/null; then
     erro "O dispositivo '$FULL_PARTITION_PATH' (correspondente a '$PARTITION_NAME_INPUT') não existe. Verifique 'lsblk'."
 fi
 
-# Apenas para LVM: verificar se é um PV válido.
-# Se o PV não for válido, não podemos redimensionar.
 if ! pvs -o pv_name --noheadings "$FULL_PARTITION_PATH" &>/dev/null; then
     erro "A partição '$PARTITION_NAME_INPUT' não parece ser um Volume Físico (PV) LVM válido. Por favor, selecione uma partição LVM."
 fi
 
-# Chama a função principal de redimensionamento
 perform_resize "$PARTITION_NAME_INPUT"
