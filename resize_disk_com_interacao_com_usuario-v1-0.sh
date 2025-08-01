@@ -10,7 +10,7 @@
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
 # e que a partição LVM seja a última ou única partição no disco.
 #
-# Exemplo de execução (executar como root):
+# Exemplo de execução (executar como root)::
 #       # ./resize_disk.sh
 #
 # -----------------PACKAGE REQUIRED ----------------------------------------#
