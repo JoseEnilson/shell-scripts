@@ -5,6 +5,7 @@
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
 #
+# IMPORTANTE: IMPRIMI INFORMAÇÃO NA TELA, TEM EXCEÇÃO PARA O SDA
 # ------------------------------------------------------------------------ #
 # Este programa irá redimensionar um disco LVM existente.
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
