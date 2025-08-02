@@ -5,7 +5,7 @@
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
 #
-# IMPORTANTE: IMPRIMI INFORMAÇÃO NA TELA, TEM EXCEÇÃO PARA O SDA
+# IMPORTANTE: IMPRIMI INFORMAÇÃO NA TELA
 # ------------------------------------------------------------------------ #
 # Este programa irá redimensionar um disco LVM existente.
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
@@ -46,19 +46,17 @@ sucesso() {
 erro() {
     local message="${1:-"Erro desconhecido"}"
     echo -e "\n${RED}ERRO: $message${NC}" | tee -a "$LOG_FILE"
-    echo -e "${RED}CONSULTE OS ARQUIVOS DE LOGS: $LVM_LOG_FILE e/ou $LOG_FILE${NC}\n" | tee -a "$LOG_FILE"
+    echo -e "\n${RED}CONSULTE OS ARQUIVOS DE LOGS: $LVM_LOG_FILE e/ou $LOG_FILE${NC}\n" | tee -a "$LOG_FILE"
     exit 1
 }
 
 # Função para registrar informações detalhadas nos logs E na tela
 registrar_logs() {
     local log_output="$1"
-    echo -e "\n--- [ $(date) ] ---" | tee -a "$log_output"
-    echo -e "\n--- LSBLK ---\n" | tee -a "$log_output"
-    lsblk | tee -a "$log_output"
-    echo -e "\n--- DF -HT ---\n" | tee -a "$log_output"
-    df -hT | tee -a "$log_output"
-    echo -e "\n-------------------------------------------------\n" | tee -a "$log_output"
+    echo -e "\n--- [ $(date) ] ---" >> "$log_output"
+    echo -e "\n--- LSBLK ---\n" >> "$log_output"
+    lsblk >> "$log_output"
+    echo -e "\n-------------------------------------------------\n" >> "$log_output"
 }
 
 # Função para verificar a existência de pacotes
@@ -153,36 +151,48 @@ perform_resize() {
     registrar_logs "$LOG_FILE" # Coleta e exibe os logs no final da operação
 }
 
+function space_available () {   
+echo -e "\n=============================================================================="
+echo -e "\n\n${YELLOW}  ESPAÇO LIVRE EM DISCO $1${NC}\n\n"    
+FREE_SPACE=$(lsblk -n -o NAME,MOUNTPOINT "${FULL_PARTITION_PATH}" | grep -v "${PARTITION_NAME_INPUT}" | awk '{print $NF}')
+df -hT "${FREE_SPACE}"
+echo -e "\n==============================================================================\n\n"
+}
+
 # --- Função para encontrar a primeira partição com tamanho diferente do disco ---
 function find_inconsistent_partition() {
-    local partition_name_output="" # Variável local para armazenar o nome da partição
+    local partition_name_output=""
     local current_disk_name=""
     local current_disk_size=""
+    local disk_has_critical_partition=0
 
-    # Captura a saída do comando lsblk, filtra e armazena
-    local INPUT_DATA=$(lsblk -o KNAME,TYPE,SIZE | tail -n +2 | grep -iE "sd[a-z]" | grep -v "sda")
+    lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | while read kname type size mountpoint; do
 
-    # Se não houver dados, simplesmente retorna sem imprimir nada
-    if [ -z "$INPUT_DATA" ]; then
-        return 0
-    fi
-
-    echo "$INPUT_DATA" | while IFS= read -r line || [[ -n "$line" ]]; do
-        local name=$(echo "$line" | awk '{print $1}')
-        local type=$(echo "$line" | awk '{print $2}')
-        local size=$(echo "$line" | awk '{print $3}')
-
-        if [ "$type" == "disk" ]; then
-            current_disk_name="$name"
+        if [[ "$type" == "disk" ]]; then
+            current_disk_name="$kname"
             current_disk_size="$size"
-        elif [ "$type" == "part" ]; then
-            local parent_disk_name=$(echo "$name" | sed 's/[0-9]*$//')
+            disk_has_critical_partition=0 # Reinicia a flag para cada novo disco
+        elif [[ "$type" == "part" ]]; then
 
-            if [ "$parent_disk_name" == "$current_disk_name" ]; then
-                if [ "$current_disk_size" != "$size" ]; then # Verifica a diferença
-                    partition_name_output="$name" # Armazena o nome da partição
-                    echo "$partition_name_output" # Imprime o valor na saída padrão
-                    break # Sai do loop 'while' assim que encontrar a primeira
+            # 1. Verifica se o disco já tem uma partição crítica
+            if [[ "$disk_has_critical_partition" -eq 1 ]]; then
+                continue # Pula para a próxima partição, pois o disco já é "proibido"
+            fi
+
+            # 2. Se a partição atual for crítica, marca o disco como "proibido"
+            if [[ "$mountpoint" == "/boot" || "$mountpoint" == "/" || "$mountpoint" == "[SWAP]" ]]; then
+                disk_has_critical_partition=1
+                continue
+            fi
+            
+            # 3. Realiza a lógica de busca se nenhuma partição crítica for encontrada
+            local partition_number=$(echo "$kname" | grep -o "[0-9]\+$")
+            if [[ "$kname" =~ ^"$current_disk_name"[0-9]+$ ]]; then
+                
+                if [[ "$current_disk_size" != "$size" ]]; then
+                    partition_name_output="$kname"
+                    echo "$partition_name_output"
+                    break
                 fi
             fi
         fi
@@ -205,13 +215,7 @@ echo -e "\n${YELLOW}Opção selecionada: Redimensionar um disco LVM${NC}\n" | te
 echo -e "\n${YELLOW}Realizando rescan dos discos. Por favor, aguarde...${NC}\n" | tee -a "$LOG_FILE"
 rescan_disks &
 wait # Espera o rescan de discos terminar antes de continuar
-
-echo -e "\n${YELLOW}ATENÇÃO!!! -> CERTIFIQUE-SE DE QUE O DISCO FOI ESTENDIDO NO VMWARE!${NC}" | tee -a "$LOG_FILE"
-echo -e "\n${YELLOW}Lista de discos e partições disponíveis:${NC}\n"
-lsblk | tee -a "$LOG_FILE" # Exibe e loga o estado inicial dos discos
 echo " "
-# Solicita a partição no novo formato
-# read -rp "INFORME O NOME DA PARTIÇÃO LVM QUE SERÁ REDIMENSIONADA [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
 
 PARTITION_NAME_INPUT="$(find_inconsistent_partition)"
 
@@ -236,4 +240,6 @@ if ! pvs -o pv_name --noheadings "$FULL_PARTITION_PATH" &>/dev/null; then
 fi
 
 # Chama a função principal de redimensionamento
+space_available "ANTES"
 perform_resize "$PARTITION_NAME_INPUT"
+space_available "DEPOIS"
