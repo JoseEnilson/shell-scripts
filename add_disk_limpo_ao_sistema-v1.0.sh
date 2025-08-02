@@ -4,6 +4,7 @@
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
 #
+# INFO: Solicita três entradas ao usuário - VG_NAME, LV_NAME, MOUNT_POINT
 # ------------------------------------------------------------------------ #
 # Este programa adiciona um novo disco ao sistema, criando um PV, VG, LV,
 # formatando com EXT4, criando um ponto de montagem e configurando o fstab.
