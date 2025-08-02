@@ -5,8 +5,7 @@
 # Autor:        José Enilson Mota Silva
 # Manutenção:   José Enilson Mota Silva
 #
-# IMPORTANTE: NÃO IMPRIMI INFORMAÇÃO NA TELA, VAI TUDO PARA ARQUIVOS DE LOGS
-#             NÃO CONFIGURA O /boot, o swap e o / (barra)
+# IMPORTANTE: NÃO IMPRIMI INFORMAÇÃO NA TELA 
 # ------------------------------------------------------------------------ #
 # Este programa irá redimensionar um disco LVM existente.
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
@@ -149,21 +148,31 @@ function find_inconsistent_partition() {
     local partition_name_output=""
     local current_disk_name=""
     local current_disk_size=""
+    local disk_has_critical_partition=0
 
-    lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | grep -v "sda" | while read kname type size mountpoint; do
+    lsblk -n -o KNAME,TYPE,SIZE,MOUNTPOINT | while read kname type size mountpoint; do
 
         if [[ "$type" == "disk" ]]; then
             current_disk_name="$kname"
             current_disk_size="$size"
+            disk_has_critical_partition=0 # Reinicia a flag para cada novo disco
         elif [[ "$type" == "part" ]]; then
-            local partition_number=$(echo "$kname" | grep -o "[0-9]\+$")
 
+            # 1. Verifica se o disco já tem uma partição crítica
+            if [[ "$disk_has_critical_partition" -eq 1 ]]; then
+                continue # Pula para a próxima partição, pois o disco já é "proibido"
+            fi
+
+            # 2. Se a partição atual for crítica, marca o disco como "proibido"
+            if [[ "$mountpoint" == "/boot" || "$mountpoint" == "/" || "$mountpoint" == "[SWAP]" ]]; then
+                disk_has_critical_partition=1
+                continue
+            fi
+            
+            # 3. Realiza a lógica de busca se nenhuma partição crítica for encontrada
+            local partition_number=$(echo "$kname" | grep -o "[0-9]\+$")
             if [[ "$kname" =~ ^"$current_disk_name"[0-9]+$ ]]; then
                 
-                if [[ "$partition_number" -le 4 && ( "$mountpoint" == "/boot" || "$mountpoint" == "/" || "$mountpoint" == "[SWAP]" ) ]]; then
-                    continue
-                fi
-
                 if [[ "$current_disk_size" != "$size" ]]; then
                     partition_name_output="$kname"
                     echo "$partition_name_output"
