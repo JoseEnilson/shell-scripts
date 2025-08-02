@@ -85,11 +85,16 @@ remover_disco() {
 
     echo "Removendo volume físico: /dev/${disk}${PART_NUM}..." | tee -a "$LOG_FILE"
     pvremove -y "/dev/${disk}${PART_NUM}" >> "$LVM_LOG_FILE" 2>&1 || erro "Falha ao remover PV /dev/${disk}${PART_NUM}."
-
+ 
     # Remover o disco do sistema
-    echo "Removendo o disco físico /dev/$disk do sistema..." | tee -a "$LOG_FILE"
-    echo 1 > "/sys/block/$disk/device/delete" 2>> "$LOG_FILE" || erro "Falha ao remover o disco físico /dev/$disk. Pode ser necessário reiniciar o sistema."
+    # echo "Removendo o disco físico /dev/$disk do sistema..." | tee -a "$LOG_FILE"
+    (
+        echo d     
+        echo w     
+    ) | fdisk "/dev/${disk}"  >/dev/null 2>&1
 
+    echo 1 > "/sys/block/$disk/device/delete" 2>> "$LOG_FILE" || erro "Falha ao remover o disco físico /dev/$disk. Pode ser necessário reiniciar o sistema."
+    
     # Remover entrada do fstab usando o caminho /dev/mapper/VG_NAME-LV_NAME
     echo "Removendo entrada de ${lv_mapper_path} do /etc/fstab..." | tee -a "$LOG_FILE"
     local path_fstab=$(echo "/dev/mapper/${vg}-${lv}")
