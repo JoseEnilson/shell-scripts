@@ -281,7 +281,7 @@ function select_disk() {
     
     # As mensagens informativas agora são enviadas para stderr (>&2)
     echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
-    echo -e "${C_YELLOW}AGUARDE!!! INFORME OS DADOS SOMENTE QUANDO SOLICITADO...................${C_RESET}\n" >&2   
+    echo -e "${C_YELLOW}AGUARDE!!! ..................${C_RESET}\n" >&2   
     lsblk "/dev/${first_clean_disk}" | tee -a "$DISK_LOG_FILE" >&2 # Exibe e loga informações do disco selecionado, também para stderr
 
     # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
@@ -396,8 +396,12 @@ function add_disk_to_lvm() {
     
     # # Usando diretamente o caminho do LV para maior robustez
     # echo "$lv_path $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
-    local persisttab=$(echo "$lv_path" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
-    echo "$persisttab $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
+    #local PERSISTTAB=$(echo "$lv_path" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
+    #echo "$PERSISTTAB $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
+    PERSISTTAB=$(echo "${lv_path}" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
+    NOVA_LINHA=$(echo "${PERSISTTAB} ${MOUNT_POINT} ext4 defaults 1 2")
+    sudo sed -i.bak "\$a\\${NOVA_LINHA}" /etc/fstab
+
     
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
