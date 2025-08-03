@@ -47,6 +47,15 @@ readonly PARTITION_NUMBER=1 # Usar 1 para a primeira partição primária
 # Recebe um (1) argumento pela linha de comando
 USER_INPUT="$1"
 
+
+# -------------Valida o argumento informando pelo ususário.------------------------#
+
+if [ -z "$USER_INPUT" ]; then # Validar a entrada original do usuário
+    echo -e "\n O SCRIPT DEVE SER EXECUTADO INFORMANDO O NOME DO VOLUME QUE DEVE SER CRIADO."
+    echo -e "\n Exemplo: ./add_disk_limpo_ao_sistema.sh ${C_YELLOW}NomeDoVolume${C_RESET}\n"
+    exit 0
+fi 
+
 # --- Funções de Validação e Mensagens ---
 
 function error_exit() {
@@ -314,18 +323,11 @@ function add_disk_to_lvm() {
     fi
 
     # Input do nome do Volume Group
-     echo " " 
-     if [ -z "$USER_INPUT" ]; then # Validar a entrada original do usuário
-        error_exit "Nome do Volume Group não pode ser vazio."
-    fi   
-
     VG_INPUT=$(echo "$USER_INPUT" | tr '[:lower:]' '[:upper:]')
+
     # Adiciona o prefixo 'vg_'
     VG_NAME="vg_${VG_INPUT}"
     echo "DEBUG: Nome do VG informado: $VG_NAME" >> "$LVM_LOG_FILE"
-    #if [ -z "$VG_INPUT" ]; then # Validar a entrada original do usuário
-    #    error_exit "Nome do Volume Group não pode ser vazio."
-    #fi
 
     # Cria Volume Group (VG)
     echo -e "${C_BLUE}Criando Volume Group ${VG_NAME}...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
@@ -428,6 +430,9 @@ normaliza_ponto_montagem() {
 
 # --- Execução Principal ---
 main() {
+    
+
+
     echo "DEBUG: Verificando privilégios de root." >> "$DISK_LOG_FILE"
     if [ "$(id -u)" -ne 0 ]; then
         error_exit "Este script deve ser executado como root. Use 'sudo ./add_disk.sh'."
