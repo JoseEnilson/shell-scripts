@@ -281,7 +281,7 @@ function select_disk() {
     
     # As mensagens informativas agora são enviadas para stderr (>&2)
     echo -e "${C_BLUE}PRIMEIRO DISCO LIMPO DISPONÍVEL SELECIONADO AUTOMATICAMENTE: /dev/${first_clean_disk}${C_RESET}\n" | tee -a "$DISK_LOG_FILE" >&2
-    echo -e "${C_YELLOW}AGUARDE!!! ..................${C_RESET}\n" >&2   
+    echo -e "${C_YELLOW}AGUARDE O DISCO - ${first_clean_disk} - SER CONFIGURADO ..................${C_RESET}\n" >&2   
     lsblk "/dev/${first_clean_disk}" | tee -a "$DISK_LOG_FILE" >&2 # Exibe e loga informações do disco selecionado, também para stderr
 
     # Chama partition_instructions, direcionando seu stdout para /dev/null (descarte)
@@ -408,8 +408,8 @@ function add_disk_to_lvm() {
     if [ "$fstab_status" -ne 0 ]; then
         error_exit "Falha ao adicionar entrada ao /etc/fstab. Por favor, adicione manualmente."
     fi
-
     echo -e "\n${C_GREEN}Disco configurado e montado com sucesso!${C_RESET}\n" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+    echo -e "\n--------------------------------------------------------------------------\n" 
 }
 
 # Retorna: O ponto de montagem padronizado na saída padrão (stdout).
