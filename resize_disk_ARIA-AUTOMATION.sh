@@ -2,10 +2,7 @@
 #
 # resize_disk.sh - Redimensionar um disco LVM existente
 #
-# Autor:        José Enilson Mota Silva
-# Manutenção:   José Enilson Mota Silva
-#
-# IMPORTANTE: NÃO IMPRIMI INFORMAÇÃO NA TELA 
+# IMPORTANTE: NÃO IMPRIMI INFORMAÇÃO NA TELA
 # ------------------------------------------------------------------------ #
 # Este programa irá redimensionar um disco LVM existente.
 # Ele espera que o disco já tenha sido estendido no nível do hypervisor
