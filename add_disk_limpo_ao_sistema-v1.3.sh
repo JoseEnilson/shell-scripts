@@ -430,9 +430,6 @@ normaliza_ponto_montagem() {
 
 # --- Execução Principal ---
 main() {
-    
-
-
     echo "DEBUG: Verificando privilégios de root." >> "$DISK_LOG_FILE"
     if [ "$(id -u)" -ne 0 ]; then
         error_exit "Este script deve ser executado como root. Use 'sudo ./add_disk.sh'."
