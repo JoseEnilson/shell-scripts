@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# Executar da seguinte forma: ./resize_disk_com_argumento.sh NomeDoDisco
-
 DISK=$1
+
+if [ -z "${DISK}" ]; then
+echo -e "\n Executar da seguinte forma: ./resize_disk_com_argumento.sh Nome-Do-Disco\n"
+exit 0
+fi
 
 scsidev=`ls /sys/class/scsi_device/` && for dev in $scsidev; do echo "1" > /sys/class/scsi_device/$dev/device/rescan; done
 
