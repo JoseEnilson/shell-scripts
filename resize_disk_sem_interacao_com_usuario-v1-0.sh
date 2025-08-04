@@ -17,6 +17,9 @@
 # -----------------PACKAGE REQUIRED ----------------------------------------#
 # - cloud-utils-growpart (ou outro pacote que forneça 'growpart')
 # ------------------------------------------------------------------------ #
+#                     HOMOLOGADO EM:
+# Operating System: Oracle Linux Server 9.3
+#---------------------------------------------------------------------------#
 
 # Configuração de ambiente para garantir consistência
 export LANG=C
