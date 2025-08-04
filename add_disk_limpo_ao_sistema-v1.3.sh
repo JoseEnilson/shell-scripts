@@ -394,17 +394,19 @@ function add_disk_to_lvm() {
     fi
 
     # Adiciona ao fstab para montagem persistente
-    echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
     
-    # # Usando diretamente o caminho do LV para maior robustez
-    # echo "$lv_path $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
-    #local PERSISTTAB=$(echo "$lv_path" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
-    #echo "$PERSISTTAB $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
-    PERSISTTAB=$(echo "${lv_path}" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
-    NOVA_LINHA=$(echo "${PERSISTTAB} ${MOUNT_POINT} ext4 defaults 1 2")
-    sudo sed -i.bak "\$a\\${NOVA_LINHA}" /etc/fstab
+    #echo -e "${C_BLUE}Adicionando entrada para ${lv_path} no /etc/fstab...${C_RESET}" | tee -a "$LVM_LOG_FILE" # Mensagem para tela e log
+    #PERSISTTAB=$(echo "${lv_path}" | sed -E 's#/dev/(.*)/(.*)#/dev/mapper/\1-\2#g')
+    #NOVA_LINHA=$(echo "${PERSISTTAB} ${MOUNT_POINT} ext4 defaults 1 2")
+    #sudo sed -i.bak "\$a\\${NOVA_LINHA}" /etc/fstab
+    
+    echo -e "Adicionando entrada para ${lv_path} no /etc/fstab..." &>> "$LVM_LOG_FILE" # Mensagem para tela e log
+    # Fazendo backup do arquivo /etc/fstab..."
+    cp /etc/fstab /etc/fstab_$(date +%Y%m%d_%H%M)
+    # Usando diretamente a informação do "df -hT" para maior robustez
+    local persisttab=$(df -hT "${lv_path}" | tail -n +2 | awk '{print $1}')
+    echo "$persisttab $MOUNT_POINT ext4 defaults 1 2" >> /etc/fstab
 
-    
     local fstab_status="$?"
     echo "DEBUG: fstab write status: $fstab_status" >> "$LVM_LOG_FILE"
     if [ "$fstab_status" -ne 0 ]; then
