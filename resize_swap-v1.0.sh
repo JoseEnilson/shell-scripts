@@ -1,7 +1,14 @@
 #!/bin/bash
 
+scsidev=`ls /sys/class/scsi_device/` && for dev in $scsidev; do echo "1" > /sys/class/scsi_device/$dev/device/rescan; done
+scsi=`ls /sys/class/scsi_host/` && for dev in $scsi; do `echo "- - -" > /sys/class/scsi_host/$dev/scan`; done
+
+# Rodar esses comandos
+growpart /dev/sda 2
+pvresize /dev/sda2
+
 # Define o novo tamanho do swap (exemplo: 4G)
-NEW_SWAP_SIZE="4G"
+NEW_SWAP_SIZE="1G"
 
 # Define o Logical Volume do swap
 SWAP_DEVICE="/dev/mapper/ol_192-swap"
