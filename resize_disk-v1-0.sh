@@ -180,7 +180,7 @@ lsblk | tee -a "$LOG_FILE" # Exibe e loga o estado inicial dos discos
 echo " "
 # Solicita a partição no novo formato
 echo " " 
-read -rp "INFORME O NOME DA PARTIÇÃO QUE SERÁ REDIMENSIONADA [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
+read -rp "INFORME O NOME DA PARTIÇÃO QUE TERÁ SEU VOLUME LÓGICO REDIMENSIONADO [Exemplo: sda1, sdb2, etc.]: " PARTITION_NAME_INPUT
 
 # Validação da entrada da partição
 if [[ -z "$PARTITION_NAME_INPUT" ]]; then
